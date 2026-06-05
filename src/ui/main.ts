@@ -25,6 +25,7 @@ interface GameSession {
   botPlayerId?: string;
   botThinking: boolean;
   freeRetry: boolean;
+  maxChain?: number; // max caixas fechadas pelo humano em um único turno (arcade)
 }
 
 let session: GameSession | null = null;
@@ -548,7 +549,7 @@ function startArcadeStage(stageId: number, godSkip = false) {
   session = {
     mode: "arcade", stageId, botDifficulty: stage.difficulty,
     controller: new GameController({ gridSize: stage.gridSize, players: [{ name: t("you"), color: PLAYER_COLORS[0]! }, { name: t("bot"), color: PLAYER_COLORS[1]! }] }),
-    botPlayerId: "p2", botThinking: false, freeRetry: false,
+    botPlayerId: "p2", botThinking: false, freeRetry: false, maxChain: 0,
   };
   showGame();
 }
@@ -631,10 +632,25 @@ function showGame() {
       const bot = st.players.find((p)=>p.id===s.botPlayerId)!;
       const won = you.score > bot.score;
       if (won) {
+        const totalBoxes = (stage.gridSize - 1) ** 2;
         let stars: 0|1|2|3 = 1; let xp = 100;
-        if (stage.objectiveType === "margin" && (you.score-bot.score) >= stage.objectiveValue) { stars=2; xp+=50; }
-        else if (stage.objectiveType === "dominance" && you.score/((stage.gridSize-1)**2) >= stage.objectiveValue/100) { stars=2; xp+=50; }
-        if (stars===2&&stage.objectiveType==="margin"&&(you.score-bot.score)>=stage.objectiveValue+2) { stars=3; xp+=50; }
+        if (stage.objectiveType === "win") {
+          if (you.score >= Math.ceil(totalBoxes * 0.65))      { stars = 3; xp += 100; }
+          else if (you.score >= Math.ceil(totalBoxes * 0.5))  { stars = 2; xp += 50; }
+        } else if (stage.objectiveType === "margin") {
+          if ((you.score - bot.score) >= stage.objectiveValue + 2)  { stars = 3; xp += 100; }
+          else if ((you.score - bot.score) >= stage.objectiveValue)  { stars = 2; xp += 50; }
+        } else if (stage.objectiveType === "dominance") {
+          if (you.score / totalBoxes >= 0.75)                              { stars = 3; xp += 100; }
+          else if (you.score / totalBoxes >= stage.objectiveValue / 100)   { stars = 2; xp += 50; }
+        } else if (stage.objectiveType === "clean") {
+          if (bot.score === 0 && (you.score - bot.score) >= 3) { stars = 3; xp += 100; }
+          else if (bot.score === 0)                             { stars = 2; xp += 50; }
+        } else if (stage.objectiveType === "chain") {
+          const chain = s.maxChain ?? 0;
+          if (chain >= 3)      { stars = 3; xp += 100; }
+          else if (chain >= 2) { stars = 2; xp += 50; }
+        }
         recordStageResult(s.stageId, stars, you.score*100, xp);
         const nextId = s.stageId < INITIAL_STAGES ? s.stageId+1 : null;
         showCelebration(stars, xp, t("stage_label",{id:s.stageId}), nextId,
@@ -672,7 +688,13 @@ function showGame() {
   function handleMove(line: Line) {
     const st = s.controller.getState();
     if (st.status==="finished"||s.botThinking||isBotTurn()||line.ownerId!==null) return;
+    const scoreBefore = s.botPlayerId != null ? (st.players.find((p)=>p.id!==s.botPlayerId)?.score ?? 0) : 0;
     s.controller.playLine(line); hoverLine=null; draw();
+    if (s.mode === "arcade" && s.botPlayerId != null) {
+      const scoreAfter = s.controller.getState().players.find((p)=>p.id!==s.botPlayerId)?.score ?? 0;
+      const closed = scoreAfter - scoreBefore;
+      if (closed > (s.maxChain ?? 0)) s.maxChain = closed;
+    }
     if (isBotTurn()&&s.controller.getState().status!=="finished") scheduleBotMove();
   }
 
