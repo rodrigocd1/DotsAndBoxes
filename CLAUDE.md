@@ -1,12 +1,39 @@
 # CLAUDE.md
 
+## Gerar APK — INSTRUÇÕES PARA IA
+
+Para gerar um novo APK de debug após qualquer alteração:
+
+```powershell
+# 1. Atualizar VERSION em src/ui/main.ts (seguir regra de versionamento abaixo)
+# 2. Rodar build + sync + gradle:
+npm run build
+npx cap sync android
+cd android; .\gradlew assembleDebug; cd ..
+# 3. Copiar APK para o Desktop com o nome correto:
+#    Origem:  android\app\build\outputs\apk\debug\app-debug.apk
+#    Destino: %USERPROFILE%\Desktop\DotsAndBoxes-v{VERSION}.apk
+```
+
+**Requisitos já instalados nesta máquina:**
+
+- Java JDK 21 (Temurin)
+- Android SDK: `C:\Users\Rodrigo-PC\AppData\Local\Android\Sdk`
+- Capacitor já configurado (`android/` já existe no projeto)
+- `ANDROID_HOME` deve ser setado se não estiver no ambiente
+
+**Atalho:** `npm run apk` executa build + sync + gradle automaticamente.
+Após o gradle, copiar manualmente com o nome `DotsAndBoxes-v{VERSION}.apk` para o Desktop.
+
+---
+
 ## Versionamento — REGRA OBRIGATÓRIA
 
 A versão do app está em `src/ui/main.ts` na constante `VERSION`.
 
 **A cada funcionalidade nova, incremento ou modificação solicitada pelo usuário, você DEVE incrementar o patch em +1 antes de finalizar a resposta.**
 
-Formato: `v{major}.{minor}.{patch}`
+Formato: `v{major}.{minor}.{patch}` com zero-padding de 2 dígitos em minor e patch: `v0.00.00`
 
 | Evento | Ação |
 |---|---|
@@ -14,7 +41,7 @@ Formato: `v{major}.{minor}.{patch}`
 | `patch` chega a 100 | `minor += 1` e `patch = 0` |
 | Mudança de major | Somente por decisão explícita do responsável |
 
-Exemplos: `v0.1.0` → `v0.1.1` → ... → `v0.1.99` → `v0.2.0` → `v0.2.1`
+Exemplos: `v0.00.08` → `v0.00.09` → ... → `v0.00.99` → `v0.01.00` → `v0.01.01`
 
 **Nunca pule essa etapa. Nunca altere major sem solicitação explícita.**
 

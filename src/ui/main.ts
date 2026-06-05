@@ -7,6 +7,7 @@ import {
   loadEnergy, spendEnergy, refillEnergy, MAX_ENERGY,
   loadGodMode, saveGodMode, GodModeConfig,
   loadTheme, saveTheme, applyTheme, Theme,
+  getAvailableSkips, useSkip, setSkipCount, SKIPS_PER_WEEK,
 } from "./storage";
 import { t, getCurrentLang, setLang, LANG_NAMES, Lang } from "./i18n";
 import { Line, lineKey } from "../models/line";
@@ -19,7 +20,7 @@ import "flag-icons/css/flag-icons.min.css";
 //   Formato: v{major}.{minor}.{patch}
 //   Exemplos: v0.1.98 → v0.1.99 → v0.2.0 → v0.2.1
 //   NUNCA alterar major sem decisão explícita do responsável pelo projeto.
-const VERSION = "v0.1.2";
+const VERSION = "v0.01.12";
 
 // ── Estado global ─────────────────────────────────────────────────────────
 interface GameSession {
@@ -136,7 +137,7 @@ function launchConfetti(dur = 3200) {
 }
 
 // ── Celebração ────────────────────────────────────────────────────────────
-function showCelebration(stars: 0|1|2|3, xp: number, label: string, nextId: number|null, onNext: ()=>void, onMap: ()=>void) {
+function showCelebration(stars: 0|1|2|3, xp: number, label: string, nextId: number|null, onNext: ()=>void, onMap: ()=>void, mainTitle?: string) {
   launchConfetti();
   const ov = document.createElement("div");
   ov.className = "cel-overlay";
@@ -145,8 +146,8 @@ function showCelebration(stars: 0|1|2|3, xp: number, label: string, nextId: numb
   ).join("");
   ov.innerHTML = `
     <div class="cel-card">
-      <div class="cel-label">${label}</div>
-      <div class="cel-title">${t("stage_complete")}</div>
+      ${label ? `<div class="cel-label">${label}</div>` : ""}
+      <div class="cel-title">${mainTitle ?? t("stage_complete")}</div>
       <div class="cel-stars">${starsHtml}</div>
       ${xp > 0 ? `<div class="cel-xp">${t("xp_gained", { xp })}</div>` : ""}
       <div class="cel-actions" id="cel-actions">
@@ -162,23 +163,32 @@ function showCelebration(stars: 0|1|2|3, xp: number, label: string, nextId: numb
   ov.querySelector("#btn-cel-map")?.addEventListener("click",  () => { ov.remove(); onMap(); });
 }
 
-function showFailBanner(onRetry: ()=>void, onAd: ()=>void, onMap: ()=>void) {
+interface SkipInfo { available: number; onSkip: () => void; }
+
+function showFailBanner(onRetry: ()=>void, onMap: ()=>void, tied = false, skipInfo?: SkipInfo) {
+  const skipSection = !tied && skipInfo ? `
+    <div class="fail-skip-section">
+      <span class="fail-skip-label">${t("skip_phase")}</span>
+      ${skipInfo.available > 0
+        ? `<button class="btn-ad" id="fa">${t("skip_via_ad", { n: skipInfo.available })}</button>`
+        : `<span class="no-skips-label">${t("no_skips_left")}</span>`}
+    </div>` : "";
   const ov = document.createElement("div");
   ov.className = "fail-overlay";
   ov.innerHTML = `
     <div class="fail-card">
-      <div class="fail-emoji">😞</div>
-      <div class="fail-title">${t("you_lost")}</div>
+      <div class="fail-emoji">${tied ? "🤝" : "😞"}</div>
+      <div class="fail-title">${tied ? t("you_tied") : t("you_lost")}</div>
       <div class="fail-actions">
         <button class="btn-retry-pay" id="fr">${t("try_again")}</button>
-        <button class="btn-ad" id="fa">${t("watch_ad")}</button>
         <button class="btn-cel-map" id="fm">${t("map")}</button>
       </div>
+      ${skipSection}
     </div>`;
   document.body.appendChild(ov);
   ov.querySelector("#fr")?.addEventListener("click", () => { ov.remove(); onRetry(); });
-  ov.querySelector("#fa")?.addEventListener("click", () => { ov.remove(); onAd(); });
   ov.querySelector("#fm")?.addEventListener("click", () => { ov.remove(); onMap(); });
+  ov.querySelector("#fa")?.addEventListener("click", () => { ov.remove(); skipInfo?.onSkip(); });
 }
 
 function showAdModal(onComplete: ()=>void) {
@@ -223,6 +233,7 @@ function showSettings() {
         <div class="theme-row">
           <button class="btn-theme-opt ${cur==="dark"?"active":""}" data-theme="dark">${t("theme_dark")}</button>
           <button class="btn-theme-opt ${cur==="light"?"active":""}" data-theme="light">${t("theme_light")}</button>
+          <button class="btn-theme-opt ${cur==="pink"?"active":""}" data-theme="pink">${t("theme_pink")}</button>
         </div>
       </div>
       <div class="settings-section">
@@ -262,6 +273,12 @@ function showGodModeModal(currentStageId?: number) {
         </div>
       </div>
       <div class="settings-section">
+        <div class="god-row">
+          <label class="god-label">${t("god_skips")} <span id="skip-count-label">${getAvailableSkips()}/${SKIPS_PER_WEEK}</span></label>
+          <button class="god-go" id="gsr">${t("god_refill")}</button>
+        </div>
+      </div>
+      <div class="settings-section">
         <label class="settings-label">${t("god_go_stage")}</label>
         <div class="god-input-row">
           <input class="god-input" id="gs" type="number" min="1" max="500" placeholder="1-500" value="${currentStageId??1}" />
@@ -281,6 +298,7 @@ function showGodModeModal(currentStageId?: number) {
     tb.classList.toggle("on", godMode.unlimitedEnergy); refreshEnergyDisplay();
   });
   ov.querySelector("#gr")?.addEventListener("click", () => { refillEnergy(); refreshEnergyDisplay(); showToast(t("energy_recharged")); });
+  ov.querySelector("#gsr")?.addEventListener("click", () => { setSkipCount(SKIPS_PER_WEEK); ov.querySelector<HTMLElement>("#skip-count-label")!.textContent = `${SKIPS_PER_WEEK}/${SKIPS_PER_WEEK}`; showToast(`${SKIPS_PER_WEEK} pulos restaurados`); });
   ov.querySelector("#gg")?.addEventListener("click", () => {
     const v = parseInt((ov.querySelector<HTMLInputElement>("#gs")!).value, 10);
     if (v >= 1 && v <= 500) { ov.remove(); session = null; hoverLine = null; startArcadeStage(v, true); }
@@ -350,7 +368,7 @@ function showMenu() {
       <div class="topbar">
         <div></div>
         <div class="topbar-right">
-          <button class="btn-settings-pill" id="btn-settings">⚙ ${t("settings")}</button>
+          <button class="btn-settings-pill" id="btn-settings" title="${t("settings")}" aria-label="${t("settings")}">⚙</button>
           <button class="btn-profile-icon" id="btn-profile" title="${t("profile")}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
           </button>
@@ -402,13 +420,20 @@ function showMenu() {
 
       ${langSelectorHTML()}
 
-      <div class="bottom-bar">
-        <div class="platform-icons">
-          <span>🖥 PC</span>
-          <span>🤖 Android</span>
-          <span>📱 iOS</span>
+      <button class="btn-menu btn-tutorial" id="btn-tutorial">
+        <div class="btn-menu-icon-wrap btn-icon--tutorial">🕹️</div>
+        <div class="btn-menu-text">
+          <strong>${t("menu_tutorial")}</strong>
+          <small>${t("menu_tutorial_sub")}</small>
         </div>
-        <div class="platform-label">${t("multiplatform")}</div>
+      </button>
+
+      <div class="bottom-bar">
+        <div class="platform-pills">
+          <span class="platform-pill">PC</span>
+          <span class="platform-pill">Android</span>
+          <span class="platform-pill">IOS</span>
+        </div>
         <div class="bottom-star">✦</div>
         <div class="version-tag">${VERSION}</div>
       </div>
@@ -416,9 +441,10 @@ function showMenu() {
     </div>`;
 
   startEnergyTimer();
-  document.getElementById("btn-arcade")!.onclick = showArcadeMap;
-  document.getElementById("btn-bot")!.onclick    = showBotSetup;
-  document.getElementById("btn-multi")!.onclick  = showMultiSetup;
+  document.getElementById("btn-arcade")!.onclick   = showArcadeMap;
+  document.getElementById("btn-bot")!.onclick      = showBotSetup;
+  document.getElementById("btn-multi")!.onclick    = showMultiSetup;
+  document.getElementById("btn-tutorial")!.onclick = showTutorial;
   document.getElementById("btn-settings")!.onclick = showSettings;
   document.getElementById("btn-profile")?.addEventListener("click", () => showToast("👤 " + t("profile") + " — em breve!"));
   document.getElementById("btn-god-menu")?.addEventListener("click", () => showGodModeModal());
@@ -573,6 +599,40 @@ function showMultiSetup() {
   document.getElementById("btn-start")!.onclick = () => { if (count) startMultiGame(count, team, sz); };
 }
 
+// ── TUTORIAL ──────────────────────────────────────────────────────────────
+function showTutorial() {
+  stopEnergyTimer();
+  const steps = [
+    { icon: "•••", title: t("tut_step1_title"), desc: t("tut_step1_desc") },
+    { icon: "⬜",  title: t("tut_step2_title"), desc: t("tut_step2_desc") },
+    { icon: "★",  title: t("tut_step3_title"), desc: t("tut_step3_desc") },
+    { icon: "🔄",  title: t("tut_step4_title"), desc: t("tut_step4_desc") },
+  ];
+  app.innerHTML = `
+    <div class="screen setup-screen">
+      <div class="screen-header">
+        <button class="btn-back" id="btn-back">${t("back")}</button>
+        <h2>🎓 ${t("menu_tutorial")}</h2>
+        <span class="header-end-spacer"></span>
+      </div>
+      <div class="tut-steps">
+        ${steps.map((s, i) => `
+          <div class="tut-step">
+            <div class="tut-step-num">${i + 1}</div>
+            <div class="tut-step-body">
+              <strong>${s.title}</strong>
+              <span>${s.desc}</span>
+            </div>
+          </div>`).join("")}
+      </div>
+      <div class="tut-board-hint">
+        <div class="tut-grid">${Array.from({length:9},(_,i)=>`<div class="tut-dot ${i===4?"tut-dot--hl":""}"></div>`).join("")}</div>
+        <p class="tut-hint-text">${t("tut_hint")}</p>
+      </div>
+    </div>`;
+  document.getElementById("btn-back")!.onclick = showMenu;
+}
+
 // ── STARTERS ──────────────────────────────────────────────────────────────
 function startArcadeStage(stageId: number, godSkip = false) {
   if (!godSkip && !godMode.unlimitedEnergy && !spendEnergy()) { showToast(t("energy_no")); return; }
@@ -663,7 +723,8 @@ function showGame() {
       const stage = getStage(s.stageId);
       const you = st.players.find((p)=>p.id!==s.botPlayerId)!;
       const bot = st.players.find((p)=>p.id===s.botPlayerId)!;
-      const won = you.score > bot.score;
+      const won  = you.score > bot.score;
+      const tied = you.score === bot.score;
       if (won) {
         const totalBoxes = (stage.gridSize - 1) ** 2;
         let stars: 0|1|2|3 = 1; let xp = 100;
@@ -690,19 +751,26 @@ function showGame() {
           () => { if (nextId) startArcadeStage(nextId); else showArcadeMap(); },
           () => { session=null; hoverLine=null; showArcadeMap(); });
       } else {
-        showFailBanner(
-          () => { if (!godMode.unlimitedEnergy && !spendEnergy()) { showToast(t("energy_no")); return; } session=null; hoverLine=null; startArcadeStage(s.stageId!,true); },
-          () => showAdModal(() => { session=null; hoverLine=null; startArcadeStage(s.stageId!,true); }),
-          () => { session=null; hoverLine=null; showArcadeMap(); });
+        const retryFn = () => { if (!godMode.unlimitedEnergy && !spendEnergy()) { showToast(t("energy_no")); return; } session=null; hoverLine=null; startArcadeStage(s.stageId!,true); };
+        const mapFn  = () => { session=null; hoverLine=null; showArcadeMap(); };
+        const nextId = s.stageId! < INITIAL_STAGES ? s.stageId! + 1 : null;
+        const skipInfo: SkipInfo | undefined = (!tied && nextId != null) ? {
+          available: getAvailableSkips(),
+          onSkip: () => showAdModal(() => { if (useSkip()) { session=null; hoverLine=null; startArcadeStage(nextId, true); } else showToast(t("no_skips_left")); }),
+        } : undefined;
+        showFailBanner(retryFn, mapFn, tied, skipInfo);
       }
     } else if (s.mode === "vs-bot") {
-      const you = st.players.find((p)=>p.id!==s.botPlayerId)!;
-      if (you.score === maxScore) showCelebration(1,60,t("victory"),null,()=>startBotGame(s.botDifficulty!,st.gridSize),showMenu);
-      else showFailBanner(()=>startBotGame(s.botDifficulty!,st.gridSize),()=>showAdModal(()=>startBotGame(s.botDifficulty!,st.gridSize)),showMenu);
+      const you  = st.players.find((p)=>p.id!==s.botPlayerId)!;
+      const bot2 = st.players.find((p)=>p.id===s.botPlayerId)!;
+      const isTie = you.score === bot2.score;
+      if (isTie) showFailBanner(()=>startBotGame(s.botDifficulty!,st.gridSize),showMenu, true);
+      else if (you.score === maxScore) showCelebration(1,60,t("victory"),null,()=>startBotGame(s.botDifficulty!,st.gridSize),showMenu);
+      else showFailBanner(()=>startBotGame(s.botDifficulty!,st.gridSize),showMenu);
     } else {
       const winners = st.players.filter((p)=>p.score===maxScore);
-      const label = winners.length===1 ? `${winners[0]!.name} ${t("won_suffix")}` : t("tie");
-      showCelebration(3,80,label,null,()=>startMultiGame(s.playerCount!,s.teamMode!,st.gridSize),showMenu);
+      const winTitle = winners.length===1 ? `${winners[0]!.name} ${t("won_suffix")}` : t("tie");
+      showCelebration(3,80,"",null,()=>startMultiGame(s.playerCount!,s.teamMode!,st.gridSize),showMenu, winTitle);
     }
   }
 
@@ -781,6 +849,22 @@ html[data-theme="light"] {
   --arcade-glow:   0 0 16px rgba(59,130,246,0.15);
   --title-gradient:none;
 }
+html[data-theme="pink"] {
+  --bg:            #fdf2f8;
+  --bg-2:          #fff0f6;
+  --bg-3:          #fce7f3;
+  --border:        rgba(236,72,153,0.15);
+  --border-strong: rgba(236,72,153,0.3);
+  --text:          #1a202c;
+  --text-2:        #6b3a5a;
+  --text-3:        #a8729a;
+  --shadow:        0 2px 12px rgba(236,72,153,0.12);
+  --ring-bg:       rgba(236,72,153,0.1);
+  --btn-bg:        #fbcfe8;
+  --arcade-border: linear-gradient(135deg,#ec4899,#f9a8d4);
+  --arcade-glow:   0 0 16px rgba(236,72,153,0.2);
+  --title-gradient:none;
+}
 
 /* ── Reset & Base ──────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -805,14 +889,16 @@ body::before {
 html[data-theme="dark"] body::before {
   background-image: url('./bg-dark-mobile.jpeg');
 }
-html[data-theme="light"] body::before {
+html[data-theme="light"] body::before,
+html[data-theme="pink"]  body::before {
   background-image: url('./bg-light-mobile.jpeg');
 }
 @media (min-width: 768px) {
   html[data-theme="dark"] body::before {
     background-image: url('./bg-dark.jpeg');
   }
-  html[data-theme="light"] body::before {
+  html[data-theme="light"] body::before,
+  html[data-theme="pink"]  body::before {
     background-image: url('./bg-light.jpeg');
   }
 }
@@ -831,13 +917,13 @@ html[data-theme="light"] body::before {
 }
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 .btn-settings-pill {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; justify-content: center;
   background: var(--bg-2); border: 1px solid var(--border-strong);
-  border-radius: 20px; padding: 7px 14px; color: var(--text-2);
-  cursor: pointer; font-size: .82rem; font-weight: 600;
+  border-radius: 50%; width: 38px; height: 38px; color: var(--text-2);
+  cursor: pointer; font-size: 1.25rem;
   transition: all .15s; backdrop-filter: blur(8px);
 }
-.btn-settings-pill:hover { background: var(--bg-3); color: var(--text); }
+.btn-settings-pill:hover { background: var(--bg-3); color: var(--text); transform: rotate(30deg); }
 .btn-profile-icon {
   width: 36px; height: 36px; border-radius: 50%;
   background: var(--bg-2); border: 1px solid var(--border-strong);
@@ -848,7 +934,7 @@ html[data-theme="light"] body::before {
 .btn-profile-icon svg { width: 18px; height: 18px; }
 
 /* ── MENU ────────────────────────────────────────────────────── */
-.menu-screen { justify-content: flex-start; padding-top: 12px; gap: 18px; }
+.menu-screen { justify-content: flex-start; padding-top: 4px; gap: 14px; }
 .menu-logo { cursor: pointer; user-select: none; text-align: center; }
 .menu-logo h1 {
   font-size: 2.4rem; font-weight: 900; letter-spacing: -1px;
@@ -889,14 +975,23 @@ html[data-theme="light"] .menu-logo h1 {
   width: 100%; justify-content: center;
 }
 .energy-bolt { font-size: 1.1rem; }
-.energy-count { font-weight: 800; color: #3b9df8; font-size: .9rem; min-width: 36px; }
-.e-dots-wrap { display: flex; gap: 3px; flex-wrap: wrap; max-width: 160px; }
-.e-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; transition: background .2s; }
-.e-dot.full { background: #3b9df8; box-shadow: 0 0 5px #3b9df866; }
-.e-bar-wrap { display: none; flex: 1; max-width: 180px; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
-.e-bar-fill { height: 100%; background: #3b9df8; border-radius: 4px; transition: width .3s; }
-html[data-theme="light"] .e-dots-wrap { display: none; }
-html[data-theme="light"] .e-bar-wrap  { display: block; }
+.energy-count { font-weight: 800; color: #22c55e; font-size: .9rem; min-width: 36px; }
+.e-dots-wrap { display: none; }
+.menu-screen .energy-row { flex-wrap: wrap; justify-content: center; row-gap: 6px; }
+.menu-screen .e-dots-wrap { display: flex; flex-basis: 100%; justify-content: center; gap: 3px; }
+.menu-screen .e-bar-wrap  { display: none; }
+.e-bar-wrap {
+  display: flex; flex: 1; max-width: 200px; height: 13px;
+  background: rgba(0,0,0,.35); border-radius: 6px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.1);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.4);
+}
+.e-bar-fill {
+  height: 100%; border-radius: 6px; transition: width .4s ease;
+  background: linear-gradient(90deg, #16a34a 0%, #22c55e 60%, #86efac 100%);
+  box-shadow: 0 0 10px #22c55e88;
+  background-size: 200px 100%;
+}
 
 /* ── MENU BUTTONS ────────────────────────────────────────────── */
 .menu-buttons { display: flex; flex-direction: column; gap: 10px; width: 100%; }
@@ -921,31 +1016,52 @@ html[data-theme="light"] .e-bar-wrap  { display: block; }
 
 /* Arcade */
 .btn-arcade {
-  background: var(--btn-bg); border: 1.5px solid rgba(6,182,212,.5);
+  background: rgba(0,0,0,.82); border: 1.5px solid rgba(6,182,212,.5);
   box-shadow: 0 0 14px rgba(6,182,212,.12);
 }
-.btn-arcade:hover { border-color: #06b6d4; background: rgba(6,182,212,.06); box-shadow: 0 0 22px rgba(6,182,212,.22); }
+.btn-arcade:hover { border-color: #06b6d4; background: rgba(0,0,0,.9); box-shadow: 0 0 22px rgba(6,182,212,.22); }
 .btn-icon--arcade { background: rgba(6,182,212,.14); border: 1.5px solid rgba(6,182,212,.5); color: #06b6d4; }
 
 /* Bot */
 .btn-bot {
-  background: var(--btn-bg); border: 1.5px solid rgba(236,72,153,.5);
+  background: rgba(0,0,0,.82); border: 1.5px solid rgba(236,72,153,.5);
   box-shadow: 0 0 14px rgba(236,72,153,.12);
 }
-.btn-bot:hover { border-color: #ec4899; background: rgba(236,72,153,.06); box-shadow: 0 0 22px rgba(236,72,153,.22); }
+.btn-bot:hover { border-color: #ec4899; background: rgba(0,0,0,.9); box-shadow: 0 0 22px rgba(236,72,153,.22); }
 .btn-icon--bot { background: rgba(236,72,153,.14); border: 1.5px solid rgba(236,72,153,.5); }
 
 /* Multi */
 .btn-multi {
-  background: var(--btn-bg); border: 1.5px solid rgba(139,92,246,.5);
+  background: rgba(0,0,0,.82); border: 1.5px solid rgba(139,92,246,.5);
   box-shadow: 0 0 14px rgba(139,92,246,.12);
 }
-.btn-multi:hover { border-color: #8b5cf6; background: rgba(139,92,246,.06); box-shadow: 0 0 22px rgba(139,92,246,.22); }
+.btn-multi:hover { border-color: #8b5cf6; background: rgba(0,0,0,.9); box-shadow: 0 0 22px rgba(139,92,246,.22); }
 .btn-icon--multi { background: rgba(139,92,246,.14); border: 1.5px solid rgba(139,92,246,.5); }
 
-html[data-theme="light"] .btn-arcade { background: #fff; }
-html[data-theme="light"] .btn-bot    { background: #fff; }
-html[data-theme="light"] .btn-multi  { background: #fff; }
+/* Tutorial */
+.btn-tutorial {
+  background: rgba(0,0,0,.82); border: 1.5px solid rgba(245,158,11,.5);
+  box-shadow: 0 0 14px rgba(245,158,11,.12);
+}
+.btn-tutorial:hover { border-color: #f59e0b; background: rgba(0,0,0,.9); box-shadow: 0 0 22px rgba(245,158,11,.22); }
+.btn-icon--tutorial { background: rgba(245,158,11,.14); border: 1.5px solid rgba(245,158,11,.5); }
+
+html[data-theme="light"] .btn-arcade,
+html[data-theme="light"] .btn-bot,
+html[data-theme="light"] .btn-multi,
+html[data-theme="light"] .btn-tutorial { background: #d1d5db; }
+html[data-theme="light"] .btn-arcade:hover,
+html[data-theme="light"] .btn-bot:hover,
+html[data-theme="light"] .btn-multi:hover,
+html[data-theme="light"] .btn-tutorial:hover { background: #b8bcc4; }
+html[data-theme="pink"] .btn-arcade,
+html[data-theme="pink"] .btn-bot,
+html[data-theme="pink"] .btn-multi,
+html[data-theme="pink"] .btn-tutorial { background: #fbcfe8; }
+html[data-theme="pink"] .btn-arcade:hover,
+html[data-theme="pink"] .btn-bot:hover,
+html[data-theme="pink"] .btn-multi:hover,
+html[data-theme="pink"] .btn-tutorial:hover { background: #f9a8d4; }
 
 .badge-new {
   position: absolute; top: 10px; right: 12px;
@@ -973,8 +1089,16 @@ html[data-theme="light"] .btn-multi  { background: #fff; }
   margin-top: auto; padding-top: 8px; width: 100%;
   position: relative;
 }
-.platform-icons { display: flex; gap: 16px; font-size: .78rem; color: var(--text-3); }
-.platform-label { font-size: .72rem; color: var(--text-3); }
+.platform-pills {
+  display: flex; gap: 12px;
+  border: 1.5px solid var(--border-strong); border-radius: 20px;
+  padding: 5px 18px;
+  background: var(--bg-2);
+}
+.platform-pill {
+  font-size: .75rem; font-weight: 800;
+  color: var(--text-2); letter-spacing: .8px;
+}
 .bottom-star {
   position: absolute; right: 0; bottom: 2px;
   font-size: 1.3rem; color: var(--text-3); opacity: .5;
@@ -1080,6 +1204,10 @@ html[data-theme="light"] .btn-multi  { background: #fff; }
 
 /* ── JOGO ────────────────────────────────────────────────────── */
 .game-screen { padding: 10px 16px 20px; gap: 10px; }
+.game-screen .canvas-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; }
+@media (max-width: 767px) {
+  .game-screen { justify-content: center; padding-top: clamp(16px, 3vh, 32px); }
+}
 .scoreboard { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .player-chip { display: flex; align-items: center; gap: 7px; background: var(--bg-2); border: 2px solid var(--border); border-radius: 40px; padding: 7px 14px; font-size: .88rem; transition: border-color .15s; }
 .player-chip--active { border-color: var(--pc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc) 18%, transparent); }
@@ -1144,7 +1272,23 @@ canvas { max-width: 100%; height: auto; border-radius: 14px; background: #fff; b
 .fail-actions { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 .btn-retry-pay { background: #e74c3c; border: none; border-radius: 10px; padding: 12px 24px; color: #fff; font-weight: 700; cursor: pointer; font-size: .95rem; transition: background .15s; }
 .btn-retry-pay:hover { background: #c0392b; }
-.btn-ad { background: transparent; border: 1px solid #3b9df8; border-radius: 10px; padding: 12px 24px; color: #3b9df8; font-weight: 700; cursor: pointer; font-size: .95rem; transition: all .15s; }
+/* ── TUTORIAL ────────────────────────────────────────────────── */
+.tut-steps { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.tut-step { display: flex; align-items: flex-start; gap: 12px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.tut-step-num { width: 28px; height: 28px; border-radius: 50%; background: rgba(245,158,11,.15); border: 1.5px solid rgba(245,158,11,.55); color: #f59e0b; font-weight: 800; font-size: .85rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tut-step-body { display: flex; flex-direction: column; gap: 3px; }
+.tut-step-body strong { font-size: .9rem; font-weight: 700; color: var(--text); }
+.tut-step-body span { font-size: .78rem; color: var(--text-2); line-height: 1.4; }
+.tut-board-hint { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; width: 100%; }
+.tut-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; padding: 4px; }
+.tut-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(140,155,180,.45); }
+.tut-dot--hl { background: #06b6d4; box-shadow: 0 0 8px #06b6d4; }
+.tut-hint-text { font-size: .76rem; color: var(--text-2); text-align: center; }
+
+.fail-skip-section { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08); }
+.fail-skip-label { font-size: .8rem; color: var(--text-2); font-weight: 600; }
+.no-skips-label { font-size: .78rem; color: var(--text-3); }
+.btn-ad { background: transparent; border: 1px solid #3b9df8; border-radius: 10px; padding: 12px 24px; color: #3b9df8; font-weight: 700; cursor: pointer; font-size: .95rem; transition: all .15s; width: 100%; }
 .btn-ad:hover { background: rgba(59,157,248,.1); }
 
 /* ── ANÚNCIO ─────────────────────────────────────────────────── */

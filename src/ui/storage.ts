@@ -1,8 +1,48 @@
-/** Persistência em localStorage — progresso, rank, energia, god mode, tema */
+/** Persistência em localStorage — progresso, rank, energia, god mode, tema, pulos */
 import { t } from "./i18n";
 
+// ── Pulos de fase (skip semanal) ──────────────────────────────────────────
+export const SKIPS_PER_WEEK = 3;
+const SKIPS_KEY = "dab_skips";
+interface SkipData { count: number; weekStart: number; }
+
+function getWeekStart(): number {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // segunda-feira
+  return d.getTime();
+}
+
+function loadSkipData(): SkipData {
+  try {
+    const raw = localStorage.getItem(SKIPS_KEY);
+    if (raw) {
+      const data = JSON.parse(raw) as SkipData;
+      if (data.weekStart >= getWeekStart()) return data;
+    }
+  } catch {}
+  const fresh: SkipData = { count: SKIPS_PER_WEEK, weekStart: getWeekStart() };
+  localStorage.setItem(SKIPS_KEY, JSON.stringify(fresh));
+  return fresh;
+}
+
+export function getAvailableSkips(): number { return loadSkipData().count; }
+
+export function useSkip(): boolean {
+  const data = loadSkipData();
+  if (data.count <= 0) return false;
+  data.count--;
+  localStorage.setItem(SKIPS_KEY, JSON.stringify(data));
+  return true;
+}
+
+export function setSkipCount(n: number): void {
+  const data = loadSkipData();
+  data.count = Math.max(0, n);
+  localStorage.setItem(SKIPS_KEY, JSON.stringify(data));
+}
+
 // ── Tema ──────────────────────────────────────────────────────────────────
-export type Theme = "dark" | "light";
+export type Theme = "dark" | "light" | "pink";
 const THEME_KEY = "dab_theme";
 export function loadTheme(): Theme {
   return (localStorage.getItem(THEME_KEY) as Theme | null) ?? "dark";
