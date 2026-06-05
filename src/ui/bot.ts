@@ -1,0 +1,212 @@
+import { GameState } from "../state/game-state";
+import { Line, lineKey } from "../models/line";
+import { applyMove } from "../services/move";
+import { getAvailableLines } from "../queries/lines";
+import { boxEdgeKeys } from "../models/box";
+import { dot } from "../models/dot";
+
+export type BotDifficulty =
+  | "muito-facil"
+  | "facil"
+  | "medio"
+  | "dificil"
+  | "muito-dificil"
+  | "impossivel"
+  | "impulsivo";
+
+export const BOT_DIFFICULTY_LABELS: Record<BotDifficulty, string> = {
+  "muito-facil": "Muito Fácil",
+  facil: "Fácil",
+  medio: "Médio",
+  dificil: "Difícil",
+  "muito-dificil": "Muito Difícil",
+  impossivel: "Impossível",
+  impulsivo: "Impulsivo",
+};
+
+function randomLine(lines: readonly Line[]): Line {
+  return lines[Math.floor(Math.random() * lines.length)] as Line;
+}
+
+/** Conta quantos lados de uma caixa já estão tomados */
+function sidesCount(state: GameState, topLeftRow: number, topLeftCol: number): number {
+  const keys = boxEdgeKeys(dot(topLeftRow, topLeftCol));
+  return keys.filter((k) => state.lines[k]?.ownerId !== null).length;
+}
+
+/** Linhas que fecham ao menos 1 caixa imediatamente (3 lados já tomados) */
+function winningMoves(state: GameState, lines: readonly Line[]): Line[] {
+  return lines.filter((line) => {
+    const { gridSize } = state;
+    // Verifica as caixas adjacentes à linha
+    const adjacent = adjacentBoxes(line, gridSize);
+    return adjacent.some(([r, c]) => sidesCount(state, r, c) === 3);
+  });
+}
+
+/** Linhas que NÃO entregam caixa ao adversário (nenhuma caixa adjacente com 2 lados) */
+function safeMoves(state: GameState, lines: readonly Line[]): Line[] {
+  return lines.filter((line) => {
+    const { gridSize } = state;
+    const adjacent = adjacentBoxes(line, gridSize);
+    return !adjacent.some(([r, c]) => sidesCount(state, r, c) === 2);
+  });
+}
+
+function adjacentBoxes(line: Line, gridSize: number): [number, number][] {
+  const boxes: [number, number][] = [];
+  const { from, to } = line;
+  const isH = from.row === to.row;
+  if (isH) {
+    const r = from.row;
+    const c = from.col;
+    if (r > 0) boxes.push([r - 1, c]);
+    if (r < gridSize - 1) boxes.push([r, c]);
+  } else {
+    const r = from.row;
+    const c = from.col;
+    if (c > 0) boxes.push([r, c - 1]);
+    if (c < gridSize - 1) boxes.push([r, c]);
+  }
+  return boxes;
+}
+
+// ── Minimax ────────────────────────────────────────────────────────────────
+
+function evaluate(state: GameState, botId: string): number {
+  const bot = state.players.find((p) => p.id === botId);
+  const opp = state.players.find((p) => p.id !== botId);
+  return (bot?.score ?? 0) - (opp?.score ?? 0);
+}
+
+function minimax(
+  state: GameState,
+  botId: string,
+  depth: number,
+  alpha: number,
+  beta: number,
+  maximizing: boolean,
+): number {
+  if (state.status === "finished" || depth === 0) {
+    return evaluate(state, botId);
+  }
+
+  const lines = getAvailableLines(state);
+  if (lines.length === 0) return evaluate(state, botId);
+
+  // Ordena: jogadas vencedoras primeiro (melhora poda)
+  const sorted = [...lines].sort((a, b) => {
+    const aWins = adjacentBoxes(a, state.gridSize).some(
+      ([r, c]) => sidesCount(state, r, c) === 3,
+    )
+      ? 1
+      : 0;
+    const bWins = adjacentBoxes(b, state.gridSize).some(
+      ([r, c]) => sidesCount(state, r, c) === 3,
+    )
+      ? 1
+      : 0;
+    return bWins - aWins;
+  });
+
+  if (maximizing) {
+    let best = -Infinity;
+    for (const line of sorted) {
+      const result = applyMove(state, line);
+      if (!result.ok) continue;
+      const nextMaximizing = result.value.currentPlayerId === botId;
+      const val = minimax(result.value, botId, depth - 1, alpha, beta, nextMaximizing);
+      best = Math.max(best, val);
+      alpha = Math.max(alpha, val);
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (const line of sorted) {
+      const result = applyMove(state, line);
+      if (!result.ok) continue;
+      const nextMaximizing = result.value.currentPlayerId === botId;
+      const val = minimax(result.value, botId, depth - 1, alpha, beta, nextMaximizing);
+      best = Math.min(best, val);
+      beta = Math.min(beta, val);
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
+function bestMinimaxMove(state: GameState, botId: string, depth: number): Line {
+  const lines = getAvailableLines(state);
+  let bestLine = lines[0] as Line;
+  let bestVal = -Infinity;
+
+  for (const line of lines) {
+    const result = applyMove(state, line);
+    if (!result.ok) continue;
+    const nextMax = result.value.currentPlayerId === botId;
+    const val = minimax(result.value, botId, depth - 1, -Infinity, Infinity, nextMax);
+    if (val > bestVal) {
+      bestVal = val;
+      bestLine = line;
+    }
+  }
+  return bestLine;
+}
+
+// ── Ponto de entrada público ────────────────────────────────────────────────
+
+export function chooseBotMove(state: GameState, difficulty: BotDifficulty): Line {
+  const available = getAvailableLines(state);
+  if (available.length === 0) throw new Error("Sem movimentos disponíveis");
+
+  const botId = state.currentPlayerId;
+
+  switch (difficulty) {
+    case "muito-facil":
+      return randomLine(available);
+
+    case "facil": {
+      const wins = winningMoves(state, available);
+      if (wins.length > 0 && Math.random() < 0.5) return randomLine(wins);
+      return randomLine(available);
+    }
+
+    case "medio": {
+      const wins = winningMoves(state, available);
+      if (wins.length > 0) return randomLine(wins);
+      const safe = safeMoves(state, available);
+      return safe.length > 0 ? randomLine(safe) : randomLine(available);
+    }
+
+    case "dificil":
+      return bestMinimaxMove(state, botId, 3);
+
+    case "muito-dificil":
+      return bestMinimaxMove(state, botId, 6);
+
+    case "impossivel": {
+      const depth = state.gridSize <= 4 ? 12 : 8;
+      return bestMinimaxMove(state, botId, depth);
+    }
+
+    case "impulsivo":
+      return Math.random() < 0.4
+        ? bestMinimaxMove(state, botId, 8)
+        : randomLine(available);
+  }
+}
+
+/** Retorna o delay em ms antes do bot jogar (simula "pensar") */
+export function botThinkDelay(difficulty: BotDifficulty): number {
+  const delays: Record<BotDifficulty, number> = {
+    "muito-facil": 300,
+    facil: 400,
+    medio: 500,
+    dificil: 700,
+    "muito-dificil": 900,
+    impossivel: 1200,
+    impulsivo: 200,
+  };
+  return delays[difficulty];
+}
