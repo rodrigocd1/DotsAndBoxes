@@ -1,4 +1,21 @@
-/** Persistência em localStorage — progresso de estágios e rank */
+/** Persistência em localStorage — progresso, rank, energia, god mode, tema */
+import { t } from "./i18n";
+
+// ── Tema ──────────────────────────────────────────────────────────────────
+export type Theme = "dark" | "light";
+const THEME_KEY = "dab_theme";
+export function loadTheme(): Theme {
+  return (localStorage.getItem(THEME_KEY) as Theme | null) ?? "dark";
+}
+export function saveTheme(theme: Theme): void {
+  localStorage.setItem(THEME_KEY, theme);
+  document.documentElement.setAttribute("data-theme", theme);
+}
+export function applyTheme(): void {
+  document.documentElement.setAttribute("data-theme", loadTheme());
+}
+
+// ── Perfil / XP ───────────────────────────────────────────────────────────
 
 export interface StageProgress {
   stars: 0 | 1 | 2 | 3;
@@ -11,7 +28,7 @@ export interface PlayerProfile {
   stageProgress: Record<number, StageProgress>;
 }
 
-const KEY = "dab_profile";
+const PROFILE_KEY = "dab_profile";
 
 function defaultProfile(): PlayerProfile {
   return { name: "Jogador", xp: 0, stageProgress: {} };
@@ -19,7 +36,7 @@ function defaultProfile(): PlayerProfile {
 
 export function loadProfile(): PlayerProfile {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(PROFILE_KEY);
     if (!raw) return defaultProfile();
     return JSON.parse(raw) as PlayerProfile;
   } catch {
@@ -28,7 +45,7 @@ export function loadProfile(): PlayerProfile {
 }
 
 export function saveProfile(p: PlayerProfile): void {
-  localStorage.setItem(KEY, JSON.stringify(p));
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
 }
 
 export function recordStageResult(
@@ -50,21 +67,96 @@ export function recordStageResult(
 
 export function rankLabel(xp: number): { rank: string; icon: string; next: number } {
   const tiers = [
-    { rank: "Mestre",      icon: "👑", min: 150000, next: Infinity },
-    { rank: "Diamante",    icon: "🔷", min: 75000,  next: 150000 },
-    { rank: "Platina III", icon: "💎", min: 50000,  next: 75000 },
-    { rank: "Platina II",  icon: "💎", min: 40000,  next: 50000 },
-    { rank: "Platina I",   icon: "💎", min: 30000,  next: 40000 },
-    { rank: "Ouro III",    icon: "🥇", min: 20000,  next: 30000 },
-    { rank: "Ouro II",     icon: "🥇", min: 15000,  next: 20000 },
-    { rank: "Ouro I",      icon: "🥇", min: 10000,  next: 15000 },
-    { rank: "Prata III",   icon: "🥈", min: 6000,   next: 10000 },
-    { rank: "Prata II",    icon: "🥈", min: 3500,   next: 6000 },
-    { rank: "Prata I",     icon: "🥈", min: 2500,   next: 3500 },
-    { rank: "Bronze III",  icon: "🥉", min: 1500,   next: 2500 },
-    { rank: "Bronze II",   icon: "🥉", min: 1000,   next: 1500 },
-    { rank: "Bronze I",    icon: "🥉", min: 500,    next: 1000 },
-    { rank: "Iniciante",   icon: "⚪", min: 0,      next: 500 },
+    { key: "rank_master",   icon: "👑", min: 150000, next: Infinity },
+    { key: "rank_diamond",  icon: "🔷", min: 75000,  next: 150000 },
+    { key: "rank_plat_3",   icon: "💎", min: 50000,  next: 75000 },
+    { key: "rank_plat_2",   icon: "💎", min: 40000,  next: 50000 },
+    { key: "rank_plat_1",   icon: "💎", min: 30000,  next: 40000 },
+    { key: "rank_gold_3",   icon: "🥇", min: 20000,  next: 30000 },
+    { key: "rank_gold_2",   icon: "🥇", min: 15000,  next: 20000 },
+    { key: "rank_gold_1",   icon: "🥇", min: 10000,  next: 15000 },
+    { key: "rank_silver_3", icon: "🥈", min: 6000,   next: 10000 },
+    { key: "rank_silver_2", icon: "🥈", min: 3500,   next: 6000 },
+    { key: "rank_silver_1", icon: "🥈", min: 2500,   next: 3500 },
+    { key: "rank_bronze_3", icon: "🥉", min: 1500,   next: 2500 },
+    { key: "rank_bronze_2", icon: "🥉", min: 1000,   next: 1500 },
+    { key: "rank_bronze_1", icon: "🥉", min: 500,    next: 1000 },
+    { key: "rank_beginner", icon: "⚪", min: 0,      next: 500 },
   ];
-  return tiers.find((t) => xp >= t.min) ?? tiers[tiers.length - 1]!;
+  const tier = tiers.find((tier) => xp >= tier.min) ?? tiers[tiers.length - 1]!;
+  return { rank: t(tier.key), icon: tier.icon, next: tier.next };
+}
+
+// ── Sistema de Energia ────────────────────────────────────────────────────
+
+export const MAX_ENERGY = 15;
+const REGEN_MS = 60_000; // 1 energia por minuto
+
+interface EnergyState {
+  amount: number;
+  lastSaved: number;
+}
+
+const ENERGY_KEY = "dab_energy";
+
+export function loadEnergy(): number {
+  try {
+    const raw = localStorage.getItem(ENERGY_KEY);
+    if (!raw) return MAX_ENERGY;
+    const s = JSON.parse(raw) as EnergyState;
+    const regained = Math.floor((Date.now() - s.lastSaved) / REGEN_MS);
+    return Math.min(MAX_ENERGY, s.amount + regained);
+  } catch {
+    return MAX_ENERGY;
+  }
+}
+
+export function saveEnergy(amount: number): void {
+  localStorage.setItem(ENERGY_KEY, JSON.stringify({ amount, lastSaved: Date.now() }));
+}
+
+export function spendEnergy(): boolean {
+  const cur = loadEnergy();
+  if (cur <= 0) return false;
+  saveEnergy(cur - 1);
+  return true;
+}
+
+export function refillEnergy(): void {
+  saveEnergy(MAX_ENERGY);
+}
+
+/** Milissegundos até a próxima recarga de +1 energia */
+export function msToNextEnergy(): number {
+  try {
+    const raw = localStorage.getItem(ENERGY_KEY);
+    if (!raw) return 0;
+    const s = JSON.parse(raw) as EnergyState;
+    if (loadEnergy() >= MAX_ENERGY) return 0;
+    return REGEN_MS - ((Date.now() - s.lastSaved) % REGEN_MS);
+  } catch {
+    return 0;
+  }
+}
+
+// ── God Mode ──────────────────────────────────────────────────────────────
+
+const GOD_KEY = "dab_god";
+
+export interface GodModeConfig {
+  unlimitedEnergy: boolean;
+}
+
+export function loadGodMode(): GodModeConfig {
+  try {
+    const raw = localStorage.getItem(GOD_KEY);
+    if (!raw) return { unlimitedEnergy: false };
+    return JSON.parse(raw) as GodModeConfig;
+  } catch {
+    return { unlimitedEnergy: false };
+  }
+}
+
+export function saveGodMode(cfg: GodModeConfig): void {
+  localStorage.setItem(GOD_KEY, JSON.stringify(cfg));
 }

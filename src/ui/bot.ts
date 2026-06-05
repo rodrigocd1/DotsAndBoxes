@@ -4,6 +4,7 @@ import { applyMove } from "../services/move";
 import { getAvailableLines } from "../queries/lines";
 import { boxEdgeKeys } from "../models/box";
 import { dot } from "../models/dot";
+import { t } from "./i18n";
 
 export type BotDifficulty =
   | "muito-facil"
@@ -14,15 +15,24 @@ export type BotDifficulty =
   | "impossivel"
   | "impulsivo";
 
-export const BOT_DIFFICULTY_LABELS: Record<BotDifficulty, string> = {
-  "muito-facil": "Muito Fácil",
-  facil: "Fácil",
-  medio: "Médio",
-  dificil: "Difícil",
-  "muito-dificil": "Muito Difícil",
-  impossivel: "Impossível",
-  impulsivo: "Impulsivo",
+const DIFF_I18N_KEYS: Record<BotDifficulty, string> = {
+  "muito-facil":  "diff_muito_facil",
+  facil:          "diff_facil",
+  medio:          "diff_medio",
+  dificil:        "diff_dificil",
+  "muito-dificil":"diff_muito_dificil",
+  impossivel:     "diff_impossivel",
+  impulsivo:      "diff_impulsivo",
 };
+
+export function getDiffLabel(diff: BotDifficulty): string {
+  return t(DIFF_I18N_KEYS[diff]);
+}
+
+/** Lista ordenada de dificuldades para os menus */
+export const BOT_DIFFICULTIES: BotDifficulty[] = [
+  "muito-facil", "facil", "medio", "dificil", "muito-dificil", "impossivel", "impulsivo",
+];
 
 function randomLine(lines: readonly Line[]): Line {
   return lines[Math.floor(Math.random() * lines.length)] as Line;
