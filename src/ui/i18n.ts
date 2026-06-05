@@ -1,10 +1,10 @@
 export type Lang = "pt-BR" | "pt-PT" | "es" | "en";
 
 export const LANG_NAMES: Record<Lang, string> = {
-  "pt-BR": "🇧🇷 PT-BR",
-  "pt-PT": "🇵🇹 PT-PT",
-  "es":    "🇪🇸 ES",
-  "en":    "🇬🇧 EN",
+  "pt-BR": "🇧🇷",
+  "pt-PT": "🇵🇹",
+  "es":    "🇪🇸",
+  "en":    "🇬🇧",
 };
 
 const LANG_KEY = "dab_lang";
@@ -45,7 +45,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     tagline: "Conecte • Feche • Domine",
     menu_arcade: "Arcade",
     menu_arcade_sub: "{done}/{total} fases concluídas",
-    menu_bot: "vs Bot",
+    menu_bot: "Modo Treino",
     menu_bot_sub: "7 dificuldades",
     menu_multi: "Multijogador",
     menu_multi_sub: "2 a 4 jogadores • Duplas ou Solo",
@@ -161,7 +161,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     tagline: "Conecte • Feche • Domine",
     menu_arcade: "Arcade",
     menu_arcade_sub: "{done}/{total} fases concluídas",
-    menu_bot: "vs Bot",
+    menu_bot: "Modo Treino",
     menu_bot_sub: "7 dificuldades",
     menu_multi: "Multijogador",
     menu_multi_sub: "2 a 4 jogadores • Duplas ou Solo",
@@ -259,7 +259,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     tagline: "Conecta • Cierra • Domina",
     menu_arcade: "Arcade",
     menu_arcade_sub: "{done}/{total} fases completadas",
-    menu_bot: "vs Bot",
+    menu_bot: "Modo Entrenamiento",
     menu_bot_sub: "7 niveles de dificultad",
     menu_multi: "Multijugador",
     menu_multi_sub: "2 a 4 jugadores • Parejas o Solo",
@@ -357,7 +357,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     tagline: "Connect • Close • Dominate",
     menu_arcade: "Arcade",
     menu_arcade_sub: "{done}/{total} stages completed",
-    menu_bot: "vs Bot",
+    menu_bot: "Training Mode",
     menu_bot_sub: "7 difficulty levels",
     menu_multi: "Multiplayer",
     menu_multi_sub: "2 to 4 players • Teams or Solo",

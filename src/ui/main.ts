@@ -10,6 +10,7 @@ import {
 } from "./storage";
 import { t, getCurrentLang, setLang, LANG_NAMES, Lang } from "./i18n";
 import { Line, lineKey } from "../models/line";
+import "flag-icons/css/flag-icons.min.css";
 
 const VERSION = "v1.2.5";
 
@@ -298,10 +299,22 @@ function startEnergyTimer() { if (energyTimer) clearInterval(energyTimer); energ
 function stopEnergyTimer() { if (energyTimer) { clearInterval(energyTimer); energyTimer = null; } }
 
 // ── Idioma ────────────────────────────────────────────────────────────────
+const LANG_ARIA: Record<Lang, string> = {
+  "pt-BR": "Português Brasil",
+  "pt-PT": "Português Portugal",
+  "es":    "Espanhol",
+  "en":    "Inglês",
+};
+const LANG_FLAG: Record<Lang, string> = {
+  "pt-BR": "br",
+  "pt-PT": "pt",
+  "es":    "es",
+  "en":    "gb",
+};
 function langSelectorInner(): string {
   const cur = getCurrentLang();
-  return (Object.entries(LANG_NAMES) as [Lang, string][]).map(([code, label]) =>
-    `<button class="btn-lang ${code===cur?"active":""}" data-lang="${code}">${label}</button>`
+  return (Object.keys(LANG_ARIA) as Lang[]).map((code) =>
+    `<button class="btn-lang ${code===cur?"active":""}" data-lang="${code}" title="${LANG_ARIA[code]}" aria-label="${LANG_ARIA[code]}"><span class="fi fi-${LANG_FLAG[code]} fi-flag-icon"></span></button>`
   ).join("");
 }
 function langSelectorHTML(): string {
@@ -356,7 +369,6 @@ function showMenu() {
 
       <div class="menu-buttons">
         <button class="btn-menu btn-arcade" id="btn-arcade">
-          <div class="btn-menu-icon">🕹️</div>
           <div class="btn-menu-text">
             <strong>${t("menu_arcade")}</strong>
             <small>${t("menu_arcade_sub", { done, total: INITIAL_STAGES })}</small>
@@ -364,14 +376,12 @@ function showMenu() {
           ${isNew ? `<span class="badge-new">NEW</span>` : ""}
         </button>
         <button class="btn-menu btn-bot" id="btn-bot">
-          <div class="btn-menu-icon">🤖</div>
           <div class="btn-menu-text">
             <strong>${t("menu_bot")}</strong>
             <small>${t("menu_bot_sub")}</small>
           </div>
         </button>
         <button class="btn-menu btn-multi" id="btn-multi">
-          <div class="btn-menu-icon">👥</div>
           <div class="btn-menu-text">
             <strong>${t("menu_multi")}</strong>
             <small>${t("menu_multi_sub")}</small>
@@ -837,16 +847,16 @@ html[data-theme="light"] .e-bar-wrap  { display: block; }
 .menu-buttons { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 
 .btn-menu {
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; justify-content: center;
   background: var(--btn-bg); border: 1px solid var(--border);
-  border-radius: 16px; padding: 14px 18px;
-  cursor: pointer; color: var(--text); text-align: left;
+  border-radius: 16px; padding: 16px 20px;
+  cursor: pointer; color: var(--text); text-align: center;
   transition: all .15s; width: 100%; position: relative;
   overflow: hidden;
 }
 .btn-menu:hover { background: var(--bg-3); border-color: var(--border-strong); }
 .btn-menu:active { transform: scale(.985); }
-.btn-menu-icon { font-size: 1.8rem; flex-shrink: 0; }
+.btn-menu-text { display: flex; flex-direction: column; gap: 2px; align-items: center; }
 .btn-menu-text strong { font-size: .98rem; display: block; font-weight: 700; }
 .btn-menu-text small  { font-size: .76rem; color: var(--text-2); }
 
@@ -876,12 +886,14 @@ html[data-theme="light"] .btn-multi { background: #fff; }
 .lang-selector { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .btn-lang {
   background: var(--bg-2); border: 1px solid var(--border);
-  border-radius: 20px; padding: 6px 12px; color: var(--text-2);
-  cursor: pointer; font-size: .78rem; font-weight: 600;
-  transition: all .15s; white-space: nowrap;
+  border-radius: 10px; width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 1.6rem; line-height: 1;
+  transition: all .15s; padding: 0;
 }
-.btn-lang:hover { border-color: var(--border-strong); color: var(--text); }
-.btn-lang.active { background: rgba(59,157,248,0.15); border-color: #3b9df8; color: #3b9df8; }
+.btn-lang .fi-flag-icon { border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.btn-lang:hover { border-color: var(--border-strong); transform: scale(1.1); }
+.btn-lang.active { border-color: #3b9df8; box-shadow: 0 0 0 2px rgba(59,157,248,0.35); transform: scale(1.1); }
 
 /* ── BOTTOM BAR ──────────────────────────────────────────────── */
 .bottom-bar {
@@ -899,6 +911,15 @@ html[data-theme="light"] .btn-multi { background: #fff; }
 .version-tag {
   position: absolute; right: 0; top: 0;
   font-size: .68rem; color: var(--text-3);
+}
+
+@media (max-width: 767px) {
+  .menu-logo {
+    margin-top: clamp(18px, 4vh, 56px);
+  }
+  .bottom-bar {
+    padding-bottom: 4px;
+  }
 }
 
 /* ── HEADER (outras telas) ───────────────────────────────────── */
