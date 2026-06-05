@@ -19,7 +19,7 @@ import "flag-icons/css/flag-icons.min.css";
 //   Formato: v{major}.{minor}.{patch}
 //   Exemplos: v0.1.98 → v0.1.99 → v0.2.0 → v0.2.1
 //   NUNCA alterar major sem decisão explícita do responsável pelo projeto.
-const VERSION = "v0.1.1";
+const VERSION = "v0.1.2";
 
 // ── Estado global ─────────────────────────────────────────────────────────
 interface GameSession {
@@ -603,16 +603,18 @@ function startMultiGame(playerCount: number, teamMode: boolean, gridSize: number
 function showGame() {
   if (!session) return;
   const s = session; stopEnergyTimer();
-  const stageLabel = s.mode === "arcade" ? t("stage_label", { id: s.stageId! })
-    : s.mode === "vs-bot" ? t("vs_bot_label", { diff: getDiffLabel(s.botDifficulty!) })
-    : s.teamMode ? t("teams_2v2") : t("n_players", { n: s.playerCount! });
+  const modeTitle = s.mode === "arcade"
+    ? `🕹️ ${t("stage_label", { id: s.stageId! })}`
+    : s.mode === "vs-bot"
+    ? `🎮 ${t("menu_bot")} · ${getDiffLabel(s.botDifficulty!)}`
+    : `👥 ${s.teamMode ? t("teams_2v2") : t("n_players", { n: s.playerCount! })}`;
 
   app.innerHTML = `
     <div class="screen game-screen">
-      <div class="game-topbar">
-        <button class="btn-back-sm" id="btn-back">✕</button>
-        <span class="game-mode-label">${stageLabel}</span>
-        <button class="btn-god-corner" id="btn-god-game">👑</button>
+      <div class="screen-header">
+        <button class="btn-back" id="btn-back">${t("back")}</button>
+        <h2>${modeTitle}</h2>
+        ${godMode.unlimitedEnergy ? `<button class="btn-god-corner" id="btn-god-game">👑</button>` : `<span class="header-end-spacer"></span>`}
       </div>
       <div id="scoreboard" class="scoreboard"></div>
       <div id="status" class="status"></div>
@@ -623,7 +625,7 @@ function showGame() {
     session = null; hoverLine = null;
     if (s.mode === "arcade") showArcadeMap(); else if (s.mode === "vs-bot") showBotSetup(); else showMultiSetup();
   };
-  document.getElementById("btn-god-game")!.onclick = () => showGodModeModal(s.stageId);
+  document.getElementById("btn-god-game")?.addEventListener("click", () => showGodModeModal(s.stageId));
 
   const canvas = document.getElementById("board") as HTMLCanvasElement;
   const ctx = canvas.getContext("2d")!;
@@ -1078,10 +1080,6 @@ html[data-theme="light"] .btn-multi  { background: #fff; }
 
 /* ── JOGO ────────────────────────────────────────────────────── */
 .game-screen { padding: 10px 16px 20px; gap: 10px; }
-.game-topbar { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-.btn-back-sm { background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 12px; color: var(--text-2); cursor: pointer; font-size: .9rem; transition: all .15s; }
-.btn-back-sm:hover { background: var(--bg-3); }
-.game-mode-label { font-size: .82rem; color: var(--text-2); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
 .scoreboard { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .player-chip { display: flex; align-items: center; gap: 7px; background: var(--bg-2); border: 2px solid var(--border); border-radius: 40px; padding: 7px 14px; font-size: .88rem; transition: border-color .15s; }
 .player-chip--active { border-color: var(--pc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc) 18%, transparent); }
