@@ -20,7 +20,7 @@ import "flag-icons/css/flag-icons.min.css";
 //   Formato: v{major}.{minor}.{patch}
 //   Exemplos: v0.1.98 → v0.1.99 → v0.2.0 → v0.2.1
 //   NUNCA alterar major sem decisão explícita do responsável pelo projeto.
-const VERSION = "v0.01.12";
+const VERSION = "v0.01.20";
 
 // ── Estado global ─────────────────────────────────────────────────────────
 interface GameSession {
@@ -403,7 +403,7 @@ function showMenu() {
           ${isNew ? `<span class="badge-new">NEW</span>` : ""}
         </button>
         <button class="btn-menu btn-bot" id="btn-bot">
-          <div class="btn-menu-icon-wrap btn-icon--bot">😈</div>
+          <div class="btn-menu-icon-wrap btn-icon--bot">🏋️</div>
           <div class="btn-menu-text">
             <strong>${t("menu_bot")}</strong>
             <small>${t("menu_bot_sub")}</small>
@@ -428,6 +428,12 @@ function showMenu() {
         </div>
       </button>
 
+      <div class="theme-toggle-wrap">
+        <button class="theme-toggle-opt ${loadTheme()==="dark"?"active":""}" data-t="dark">🌙 ${t("theme_dark").replace("🌙 ","")}</button>
+        <button class="theme-toggle-opt ${loadTheme()==="light"?"active":""}" data-t="light">☀️ ${t("theme_light").replace("☀️ ","")}</button>
+        <button class="theme-toggle-opt ${loadTheme()==="pink"?"active":""}" data-t="pink">🌸 ${t("theme_pink").replace("🌸 ","")}</button>
+      </div>
+
       <div class="bottom-bar">
         <div class="platform-pills">
           <span class="platform-pill">PC</span>
@@ -445,6 +451,9 @@ function showMenu() {
   document.getElementById("btn-bot")!.onclick      = showBotSetup;
   document.getElementById("btn-multi")!.onclick    = showMultiSetup;
   document.getElementById("btn-tutorial")!.onclick = showTutorial;
+  document.querySelectorAll(".theme-toggle-opt").forEach((b) => {
+    (b as HTMLElement).onclick = () => { saveTheme((b as HTMLElement).dataset["t"] as Theme); showMenu(); };
+  });
   document.getElementById("btn-settings")!.onclick = showSettings;
   document.getElementById("btn-profile")?.addEventListener("click", () => showToast("👤 " + t("profile") + " — em breve!"));
   document.getElementById("btn-god-menu")?.addEventListener("click", () => showGodModeModal());
@@ -510,7 +519,7 @@ function showBotSetup() {
     <div class="screen setup-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>🎮 ${t("menu_bot")}</h2>
+        <h2>🏋️ ${t("menu_bot")}</h2>
         <span class="header-end-spacer"></span>
       </div>
       <div class="setup-section">
@@ -666,18 +675,20 @@ function showGame() {
   const modeTitle = s.mode === "arcade"
     ? `🕹️ ${t("stage_label", { id: s.stageId! })}`
     : s.mode === "vs-bot"
-    ? `🎮 ${t("menu_bot")} · ${getDiffLabel(s.botDifficulty!)}`
+    ? `🏋️ ${t("menu_bot")} · ${getDiffLabel(s.botDifficulty!)}`
     : `👥 ${s.teamMode ? t("teams_2v2") : t("n_players", { n: s.playerCount! })}`;
 
   app.innerHTML = `
     <div class="screen game-screen">
-      <div class="screen-header">
-        <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>${modeTitle}</h2>
-        ${godMode.unlimitedEnergy ? `<button class="btn-god-corner" id="btn-god-game">👑</button>` : `<span class="header-end-spacer"></span>`}
+      <div class="game-hud">
+        <div class="screen-header">
+          <button class="btn-back" id="btn-back">${t("back")}</button>
+          <h2>${modeTitle}</h2>
+          ${godMode.unlimitedEnergy ? `<button class="btn-god-corner" id="btn-god-game">👑</button>` : `<span class="header-end-spacer"></span>`}
+        </div>
+        <div id="scoreboard" class="scoreboard"></div>
+        <div id="status" class="status"></div>
       </div>
-      <div id="scoreboard" class="scoreboard"></div>
-      <div id="status" class="status"></div>
       <div class="canvas-wrapper"><canvas id="board"></canvas></div>
     </div>`;
 
@@ -889,18 +900,12 @@ body::before {
 html[data-theme="dark"] body::before {
   background-image: url('./bg-dark-mobile.jpeg');
 }
-html[data-theme="light"] body::before,
-html[data-theme="pink"]  body::before {
-  background-image: url('./bg-light-mobile.jpeg');
-}
+html[data-theme="light"] body::before { background-image: url('./bg-light-mobile.jpeg'); }
+html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.jpeg'); }
 @media (min-width: 768px) {
-  html[data-theme="dark"] body::before {
-    background-image: url('./bg-dark.jpeg');
-  }
-  html[data-theme="light"] body::before,
-  html[data-theme="pink"]  body::before {
-    background-image: url('./bg-light.jpeg');
-  }
+  html[data-theme="dark"]  body::before { background-image: url('./bg-dark.jpeg'); }
+  html[data-theme="light"] body::before { background-image: url('./bg-light.jpeg'); }
+  html[data-theme="pink"]  body::before { background-image: url('./bg-light.jpeg'); }
 }
 
 #app { width: 100%; max-width: 560px; position: relative; z-index: 1; }
@@ -941,7 +946,8 @@ html[data-theme="pink"]  body::before {
   background: var(--title-gradient);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
-html[data-theme="light"] .menu-logo h1 {
+html[data-theme="light"] .menu-logo h1,
+html[data-theme="pink"] .menu-logo h1 {
   background: none; -webkit-text-fill-color: #1e293b; color: #1e293b;
   font-weight: 900;
 }
@@ -1063,6 +1069,22 @@ html[data-theme="pink"] .btn-bot:hover,
 html[data-theme="pink"] .btn-multi:hover,
 html[data-theme="pink"] .btn-tutorial:hover { background: #f9a8d4; }
 
+/* Pink — seleções e interativos */
+html[data-theme="pink"] .btn-lang.active { border-color: #ec4899; box-shadow: 0 0 0 2px rgba(236,72,153,.3); }
+html[data-theme="pink"] .btn-theme-opt.active { background: rgba(236,72,153,.15); border-color: #ec4899; color: #be185d; }
+html[data-theme="pink"] .btn-diff.selected,
+html[data-theme="pink"] .btn-grid-size.selected,
+html[data-theme="pink"] .btn-player-count.selected,
+html[data-theme="pink"] .btn-team-mode.selected { background: rgba(236,72,153,.15); border-color: #ec4899; color: #be185d; }
+html[data-theme="pink"] .btn-grid-size.selected .dot-preview { background: #ec4899; }
+html[data-theme="pink"] .btn-start { background: #ec4899; box-shadow: 0 4px 16px rgba(236,72,153,.35); }
+html[data-theme="pink"] .btn-start:hover:not(:disabled) { background: #db2777; }
+html[data-theme="pink"] .btn-ad { border-color: #ec4899; color: #be185d; }
+html[data-theme="pink"] .btn-ad:hover { background: rgba(236,72,153,.1); }
+html[data-theme="pink"] .stage-cell.unlocked:hover { border-color: rgba(236,72,153,.5); }
+html[data-theme="pink"] .stage-cell.stars-3 { border-color: rgba(236,72,153,.6); }
+html[data-theme="pink"] .btn-lang.active { border-color: #ec4899; }
+
 .badge-new {
   position: absolute; top: 10px; right: 12px;
   background: #06b6d4; color: #fff;
@@ -1089,6 +1111,22 @@ html[data-theme="pink"] .btn-tutorial:hover { background: #f9a8d4; }
   margin-top: auto; padding-top: 8px; width: 100%;
   position: relative;
 }
+/* ── TOGGLE DE TEMA ──────────────────────────────────────────── */
+.theme-toggle-wrap {
+  display: flex;
+  background: var(--bg-2); border: 1.5px solid var(--border-strong);
+  border-radius: 20px; overflow: hidden;
+}
+.theme-toggle-opt {
+  flex: 1; padding: 5px 10px; font-size: .75rem; font-weight: 800;
+  cursor: pointer; border: none; background: transparent;
+  color: var(--text-2); transition: all .15s; white-space: nowrap;
+}
+.theme-toggle-opt:hover { color: var(--text); }
+.theme-toggle-opt.active {
+  background: var(--border-strong); color: var(--text);
+}
+
 .platform-pills {
   display: flex; gap: 12px;
   border: 1.5px solid var(--border-strong); border-radius: 20px;
@@ -1203,10 +1241,20 @@ html[data-theme="pink"] .btn-tutorial:hover { background: #f9a8d4; }
 .btn-start:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
 
 /* ── JOGO ────────────────────────────────────────────────────── */
-.game-screen { padding: 10px 16px 20px; gap: 10px; }
-.game-screen .canvas-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; }
+/* "mobile" e "responsivo" são equivalentes neste projeto: max-width: 767px */
+.game-screen {
+  position: relative; padding: 0; gap: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.game-hud {
+  position: absolute; top: 10px; left: 16px; right: 16px;
+  display: flex; flex-direction: column; gap: 10px; z-index: 2;
+  pointer-events: none;
+}
+.game-hud > * { pointer-events: auto; }
+.game-screen .canvas-wrapper { display: flex; justify-content: center; }
 @media (max-width: 767px) {
-  .game-screen { justify-content: center; padding-top: clamp(16px, 3vh, 32px); }
+  .game-screen .canvas-wrapper { margin-bottom: 40px; }
 }
 .scoreboard { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .player-chip { display: flex; align-items: center; gap: 7px; background: var(--bg-2); border: 2px solid var(--border); border-radius: 40px; padding: 7px 14px; font-size: .88rem; transition: border-color .15s; }
