@@ -1,5 +1,25 @@
 # CLAUDE.md
 
+## Versionamento — REGRA OBRIGATÓRIA
+
+A versão do app está em `src/ui/main.ts` na constante `VERSION`.
+
+**A cada funcionalidade nova, incremento ou modificação solicitada pelo usuário, você DEVE incrementar o patch em +1 antes de finalizar a resposta.**
+
+Formato: `v{major}.{minor}.{patch}`
+
+| Evento | Ação |
+|---|---|
+| Qualquer alteração funcional ou visual solicitada | `patch += 1` |
+| `patch` chega a 100 | `minor += 1` e `patch = 0` |
+| Mudança de major | Somente por decisão explícita do responsável |
+
+Exemplos: `v0.1.0` → `v0.1.1` → ... → `v0.1.99` → `v0.2.0` → `v0.2.1`
+
+**Nunca pule essa etapa. Nunca altere major sem solicitação explícita.**
+
+---
+
 ## Objetivo
 
 Atue como agente de desenvolvimento sênior neste projeto Dots and Boxes.

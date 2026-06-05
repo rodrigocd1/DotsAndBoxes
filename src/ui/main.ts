@@ -12,7 +12,14 @@ import { t, getCurrentLang, setLang, LANG_NAMES, Lang } from "./i18n";
 import { Line, lineKey } from "../models/line";
 import "flag-icons/css/flag-icons.min.css";
 
-const VERSION = "v1.2.5";
+// ── Versionamento ─────────────────────────────────────────────────────────
+// Regra obrigatória para qualquer IA ou desenvolvedor:
+//   A cada funcionalidade nova, incremento ou modificação solicitada: patch += 1
+//   Quando patch atingir 100: minor += 1 e patch = 0
+//   Formato: v{major}.{minor}.{patch}
+//   Exemplos: v0.1.98 → v0.1.99 → v0.2.0 → v0.2.1
+//   NUNCA alterar major sem decisão explícita do responsável pelo projeto.
+const VERSION = "v0.1.1";
 
 // ── Estado global ─────────────────────────────────────────────────────────
 interface GameSession {
@@ -370,6 +377,7 @@ function showMenu() {
 
       <div class="menu-buttons">
         <button class="btn-menu btn-arcade" id="btn-arcade">
+          <div class="btn-menu-icon-wrap btn-icon--arcade">☆</div>
           <div class="btn-menu-text">
             <strong>${t("menu_arcade")}</strong>
             <small>${t("menu_arcade_sub", { done, total: INITIAL_STAGES })}</small>
@@ -377,12 +385,14 @@ function showMenu() {
           ${isNew ? `<span class="badge-new">NEW</span>` : ""}
         </button>
         <button class="btn-menu btn-bot" id="btn-bot">
+          <div class="btn-menu-icon-wrap btn-icon--bot">😈</div>
           <div class="btn-menu-text">
             <strong>${t("menu_bot")}</strong>
             <small>${t("menu_bot_sub")}</small>
           </div>
         </button>
         <button class="btn-menu btn-multi" id="btn-multi">
+          <div class="btn-menu-icon-wrap btn-icon--multi">👥</div>
           <div class="btn-menu-text">
             <strong>${t("menu_multi")}</strong>
             <small>${t("menu_multi_sub")}</small>
@@ -453,21 +463,42 @@ function showArcadeMap() {
 }
 
 // ── SETUP VS BOT ──────────────────────────────────────────────────────────
+const DIFF_META: Record<BotDifficulty, { icon: string; tier: "easy" | "hard" | "wild" }> = {
+  "muito-facil":   { icon: "☆", tier: "easy" },
+  "facil":         { icon: "☆", tier: "easy" },
+  "medio":         { icon: "😊", tier: "easy" },
+  "dificil":       { icon: "😠", tier: "hard" },
+  "muito-dificil": { icon: "😠", tier: "hard" },
+  "impossivel":    { icon: "💀", tier: "hard" },
+  "impulsivo":     { icon: "🎲", tier: "wild" },
+};
+
+function dotGridHTML(n: number): string {
+  const dots = Array.from({ length: n * n }, () => `<span class="dot-preview"></span>`).join("");
+  return `<div class="dot-grid-preview" style="grid-template-columns:repeat(${n},1fr)">${dots}</div>`;
+}
+
 function showBotSetup() {
   stopEnergyTimer();
   app.innerHTML = `
     <div class="screen setup-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>🤖 ${t("menu_bot")}</h2>
+        <h2>🎮 ${t("menu_bot")}</h2>
+        <span class="header-end-spacer"></span>
       </div>
       <div class="setup-section">
         <label class="setup-label">${t("setup_difficulty")}</label>
-        <div class="diff-grid">${BOT_DIFFICULTIES.map((k) => `<button class="btn-diff" data-diff="${k}">${getDiffLabel(k)}</button>`).join("")}</div>
+        <div class="diff-grid">${BOT_DIFFICULTIES.map((k) => {
+          const m = DIFF_META[k];
+          return `<button class="btn-diff btn-diff--${m.tier}" data-diff="${k}"><span class="diff-icon">${m.icon}</span>${getDiffLabel(k)}</button>`;
+        }).join("")}</div>
       </div>
       <div class="setup-section">
         <label class="setup-label">${t("setup_grid")}</label>
-        <div class="grid-size-row">${[3,4,5,6].map(n=>`<button class="btn-grid-size" data-size="${n}">${n}×${n}</button>`).join("")}</div>
+        <div class="grid-size-row">${[3,4,5,6].map(n =>
+          `<button class="btn-grid-size" data-size="${n}"><span class="grid-size-label">${n}×${n}</span>${dotGridHTML(n)}</button>`
+        ).join("")}</div>
       </div>
       <button class="btn-start" id="btn-start" disabled>${t("setup_start")}</button>
     </div>`;
@@ -869,33 +900,50 @@ html[data-theme="light"] .e-bar-wrap  { display: block; }
 .menu-buttons { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 
 .btn-menu {
-  display: flex; align-items: center; justify-content: center;
-  background: var(--btn-bg); border: 1px solid var(--border);
-  border-radius: 16px; padding: 16px 20px;
-  cursor: pointer; color: var(--text); text-align: center;
+  display: flex; align-items: center; gap: 14px;
+  border-radius: 16px; padding: 14px 16px;
+  cursor: pointer; color: var(--text);
   transition: all .15s; width: 100%; position: relative;
   overflow: hidden;
 }
-.btn-menu:hover { background: var(--bg-3); border-color: var(--border-strong); }
 .btn-menu:active { transform: scale(.985); }
-.btn-menu-text { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+.btn-menu-icon-wrap {
+  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.35rem; transition: transform .15s;
+}
+.btn-menu:hover .btn-menu-icon-wrap { transform: scale(1.08); }
+.btn-menu-text { flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center; }
 .btn-menu-text strong { font-size: .98rem; display: block; font-weight: 700; }
 .btn-menu-text small  { font-size: .76rem; color: var(--text-2); }
 
-/* Arcade — gradient border */
+/* Arcade */
 .btn-arcade {
-  border: 1.5px solid transparent;
-  background: linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
-              var(--arcade-border) border-box;
-  box-shadow: var(--arcade-glow);
+  background: var(--btn-bg); border: 1.5px solid rgba(6,182,212,.5);
+  box-shadow: 0 0 14px rgba(6,182,212,.12);
 }
-.btn-arcade:hover { box-shadow: var(--arcade-glow), 0 2px 12px rgba(0,0,0,.2); }
+.btn-arcade:hover { border-color: #06b6d4; background: rgba(6,182,212,.06); box-shadow: 0 0 22px rgba(6,182,212,.22); }
+.btn-icon--arcade { background: rgba(6,182,212,.14); border: 1.5px solid rgba(6,182,212,.5); color: #06b6d4; }
 
-html[data-theme="light"] .btn-arcade {
-  background: #fff padding-box, linear-gradient(135deg,#3b82f6,#6366f1) border-box;
+/* Bot */
+.btn-bot {
+  background: var(--btn-bg); border: 1.5px solid rgba(236,72,153,.5);
+  box-shadow: 0 0 14px rgba(236,72,153,.12);
 }
-html[data-theme="light"] .btn-bot,
-html[data-theme="light"] .btn-multi { background: #fff; }
+.btn-bot:hover { border-color: #ec4899; background: rgba(236,72,153,.06); box-shadow: 0 0 22px rgba(236,72,153,.22); }
+.btn-icon--bot { background: rgba(236,72,153,.14); border: 1.5px solid rgba(236,72,153,.5); }
+
+/* Multi */
+.btn-multi {
+  background: var(--btn-bg); border: 1.5px solid rgba(139,92,246,.5);
+  box-shadow: 0 0 14px rgba(139,92,246,.12);
+}
+.btn-multi:hover { border-color: #8b5cf6; background: rgba(139,92,246,.06); box-shadow: 0 0 22px rgba(139,92,246,.22); }
+.btn-icon--multi { background: rgba(139,92,246,.14); border: 1.5px solid rgba(139,92,246,.5); }
+
+html[data-theme="light"] .btn-arcade { background: #fff; }
+html[data-theme="light"] .btn-bot    { background: #fff; }
+html[data-theme="light"] .btn-multi  { background: #fff; }
 
 .badge-new {
   position: absolute; top: 10px; right: 12px;
@@ -942,6 +990,9 @@ html[data-theme="light"] .btn-multi { background: #fff; }
   .bottom-bar {
     padding-bottom: 4px;
   }
+  .screen:not(.menu-screen):not(.game-screen) {
+    padding-top: clamp(48px, 8vh, 80px);
+  }
 }
 
 /* ── HEADER (outras telas) ───────────────────────────────────── */
@@ -949,7 +1000,8 @@ html[data-theme="light"] .btn-multi { background: #fff; }
   display: flex; align-items: center; justify-content: space-between;
   width: 100%; gap: 10px; padding-bottom: 4px;
 }
-.screen-header h2 { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+.screen-header h2 { flex: 1; text-align: center; font-size: 1.1rem; font-weight: 800; color: var(--text); }
+.header-end-spacer { flex: 0 0 72px; }
 .btn-back {
   background: var(--bg-2); border: 1px solid var(--border-strong);
   border-radius: 10px; padding: 8px 14px; color: var(--text-2);
@@ -989,10 +1041,31 @@ html[data-theme="light"] .btn-multi { background: #fff; }
   padding: 12px; color: var(--text); cursor: pointer; font-size: .875rem;
   transition: all .1s; text-align: center; font-weight: 600;
 }
-.btn-diff:hover, .btn-grid-size:hover, .btn-player-count:hover, .btn-team-mode:hover { background: var(--bg-3); }
-.btn-diff.selected, .btn-grid-size.selected, .btn-player-count.selected, .btn-team-mode.selected {
+.btn-diff:hover, .btn-player-count:hover, .btn-team-mode:hover { background: var(--bg-3); }
+.btn-player-count.selected, .btn-team-mode.selected {
   background: rgba(59,157,248,.15); border-color: #3b9df8; color: #3b9df8;
 }
+/* Difficulty buttons — layout + tier colors */
+.btn-diff { display: flex; align-items: center; gap: 8px; text-align: left; }
+.btn-diff:last-child:nth-child(odd) { grid-column: 1 / -1; justify-content: center; }
+.diff-icon { font-size: 1rem; flex-shrink: 0; }
+.btn-diff--easy  { border-color: rgba(6,182,212,.4); }
+.btn-diff--easy:hover  { border-color: #06b6d4; background: rgba(6,182,212,.06); }
+.btn-diff--easy.selected  { background: rgba(6,182,212,.14); border-color: #06b6d4; color: #06b6d4; }
+.btn-diff--hard  { border-color: rgba(168,85,247,.4); }
+.btn-diff--hard:hover  { border-color: #a855f7; background: rgba(168,85,247,.06); }
+.btn-diff--hard.selected  { background: rgba(168,85,247,.14); border-color: #a855f7; color: #a855f7; }
+.btn-diff--wild  { border-color: rgba(249,115,22,.4); }
+.btn-diff--wild:hover  { border-color: #f97316; background: rgba(249,115,22,.06); }
+.btn-diff--wild.selected  { background: rgba(249,115,22,.14); border-color: #f97316; color: #f97316; }
+/* Grid size buttons with dot preview */
+.btn-grid-size { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px; }
+.btn-grid-size:hover { background: var(--bg-3); }
+.btn-grid-size.selected { background: rgba(59,157,248,.15); border-color: #3b9df8; color: #3b9df8; }
+.grid-size-label { font-weight: 700; font-size: .85rem; }
+.dot-grid-preview { display: grid; gap: 3px; }
+.dot-preview { width: 5px; height: 5px; border-radius: 50%; background: rgba(140,155,180,.4); }
+.btn-grid-size.selected .dot-preview { background: #3b9df8; }
 .grid-size-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .grid-size-row > * { flex: 1; min-width: 70px; }
 .btn-start {
