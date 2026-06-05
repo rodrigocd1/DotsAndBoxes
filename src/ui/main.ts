@@ -729,23 +729,19 @@ body {
   transition: background 0.3s, color 0.3s;
 }
 
-/* Padrão de fundo */
+/* Imagem de fundo */
 body::before {
   content: '';
   position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 html[data-theme="dark"] body::before {
-  background-image: radial-gradient(circle, rgba(255,255,255,0.055) 1.5px, transparent 1.5px);
-  background-size: 28px 28px;
+  background-image: url('./bg-dark.jpeg');
 }
 html[data-theme="light"] body::before {
-  background-image:
-    linear-gradient(45deg, rgba(0,0,0,0.035) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(0,0,0,0.035) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.035) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.035) 75%);
-  background-size: 18px 18px;
-  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+  background-image: url('./bg-light.jpeg');
 }
 
 #app { width: 100%; max-width: 560px; position: relative; z-index: 1; }
