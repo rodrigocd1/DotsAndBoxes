@@ -138,8 +138,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     god_deactivated: "God Mode desativado",
     on_label: "ON",
     off_label: "OFF",
-    settings_vibration: "📳 Vibração",
+    settings_vibration: "Vibração",
     settings_music: "🎵 Volume da Música",
+    settings_sound: "🔊 Volume do Som",
     settings_mute: "🔇 Mudo (sem sons)",
 
     // Jogadores
@@ -254,8 +255,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     god_deactivated: "God Mode desativado",
     on_label: "ON",
     off_label: "OFF",
-    settings_vibration: "📳 Vibração",
+    settings_vibration: "Vibração",
     settings_music: "🎵 Volume da Música",
+    settings_sound: "🔊 Volume do Som",
     settings_mute: "🔇 Mudo (sem sons)",
 
     player_n: "Jogador {n}",
@@ -368,8 +370,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     god_deactivated: "Modo Dios desactivado",
     on_label: "ON",
     off_label: "OFF",
-    settings_vibration: "📳 Vibración",
+    settings_vibration: "Vibración",
     settings_music: "🎵 Volumen de Música",
+    settings_sound: "🔊 Volumen de Sonido",
     settings_mute: "🔇 Silencio (sin sonidos)",
 
     player_n: "Jugador {n}",
@@ -482,8 +485,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     god_deactivated: "God Mode deactivated",
     on_label: "ON",
     off_label: "OFF",
-    settings_vibration: "📳 Vibration",
+    settings_vibration: "Vibration",
     settings_music: "🎵 Music Volume",
+    settings_sound: "🔊 Sound Volume",
     settings_mute: "🔇 Mute (no sounds)",
 
     player_n: "Player {n}",

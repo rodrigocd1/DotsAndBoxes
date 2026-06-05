@@ -42,6 +42,7 @@ const THEME_ICON_SIZE = 16;
 const ICO_MOON_STARS  = tablerSvg(THEME_ICON_SIZE,   `<path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1-8.313-12.454l0 .008"/><path d="M17 4a2 2 0 0 0 2 2a2 2 0 0 0-2 2a2 2 0 0 0-2-2a2 2 0 0 0 2-2"/><path d="M19 11h2m-1-1v2"/>`);
 const ICO_SUN         = tablerSvgFilled(THEME_ICON_SIZE, `<path d="M12 19a1 1 0 0 1 .993 .883l.007 .117v1a1 1 0 0 1-1.993 .117l-.007-.117v-1a1 1 0 0 1 1-1z"/><path d="M18.313 16.91l.094 .083l.7 .7a1 1 0 0 1-1.32 1.497l-.094-.083l-.7-.7a1 1 0 0 1 1.218-1.567l.102 .07z"/><path d="M7.007 16.993a1 1 0 0 1 .083 1.32l-.083 .094l-.7 .7a1 1 0 0 1-1.497-1.32l.083-.094l.7-.7a1 1 0 0 1 1.414 0z"/><path d="M4 11a1 1 0 0 1 .117 1.993l-.117 .007h-1a1 1 0 0 1-.117-1.993l.117-.007h1z"/><path d="M21 11a1 1 0 0 1 .117 1.993l-.117 .007h-1a1 1 0 0 1-.117-1.993l.117-.007h1z"/><path d="M6.213 4.81l.094 .083l.7 .7a1 1 0 0 1-1.32 1.497l-.094-.083l-.7-.7a1 1 0 0 1 1.217-1.567l.102 .07z"/><path d="M19.107 4.893a1 1 0 0 1 .083 1.32l-.083 .094l-.7 .7a1 1 0 0 1-1.497-1.32l.083-.094l.7-.7a1 1 0 0 1 1.414 0z"/><path d="M12 2a1 1 0 0 1 .993 .883l.007 .117v1a1 1 0 0 1-1.993 .117l-.007-.117v-1a1 1 0 0 1 1-1z"/><path d="M12 7a5 5 0 1 1-4.995 5.217l-.005-.217l.005-.217a5 5 0 0 1 4.995-4.783z"/>`);
 const ICO_SETTINGS    = tablerSvg(THEME_ICON_SIZE,   `<path d="M10.325 4.317a1.95 1.95 0 0 1 3.35 0l.24 .392a1.95 1.95 0 0 0 1.155 .857l.45 .12a1.95 1.95 0 0 1 1.454 2.138l-.067 .462a1.95 1.95 0 0 0 .39 1.535l.295 .355a1.95 1.95 0 0 1 0 2.5l-.295 .355a1.95 1.95 0 0 0-.39 1.535l.067 .462a1.95 1.95 0 0 1-1.454 2.138l-.45 .12a1.95 1.95 0 0 0-1.155 .857l-.24 .392a1.95 1.95 0 0 1-3.35 0l-.24 -.392a1.95 1.95 0 0 0-1.155 -.857l-.45 -.12a1.95 1.95 0 0 1-1.454 -2.138l.067 -.462a1.95 1.95 0 0 0-.39 -1.535l-.295 -.355a1.95 1.95 0 0 1 0 -2.5l.295 -.355a1.95 1.95 0 0 0 .39 -1.535l-.067 -.462a1.95 1.95 0 0 1 1.454 -2.138l.45 -.12a1.95 1.95 0 0 0 1.155 -.857l.24 -.392z"/><circle cx="12" cy="12" r="3"/>`);
+const ICO_VIBRATION   = tablerSvg(THEME_ICON_SIZE,   `<path d="M3 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -14"/><path d="M8 4l2 0"/><path d="M9 17l0 .01"/><path d="M21 6l-2 3l2 3l-2 3l2 3"/>`);
 
 // ── Versionamento ─────────────────────────────────────────────────────────
 // Regra obrigatória para qualquer IA ou desenvolvedor:
@@ -76,6 +77,14 @@ const PLAYER_COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12"];
 applyTheme();
 
 // ── Música de fundo ───────────────────────────────────────────────────────
+function sectionTitle(icon: string, label: string): string {
+  return `
+    <span class="section-title">
+      <span class="section-title-icon">${icon}</span>
+      <span>${label}</span>
+    </span>`;
+}
+
 const bgMusic = new Audio("./bg_music.mp3");
 bgMusic.loop = true;
 bgMusic.preload = "none"; // não bloqueia o boot — carrega só quando necessário
@@ -325,7 +334,7 @@ function showSettings() {
   ov.innerHTML = `
     <div class="modal-card">
       <div class="modal-header">
-        <span>${ICO_SETTINGS} ${t("settings")}</span>
+        ${sectionTitle(ICO_SETTINGS, t("settings"))}
         <button class="modal-close" id="mc">✕</button>
       </div>
       <div class="settings-section">
@@ -342,7 +351,10 @@ function showSettings() {
       </div>
       <div class="settings-section">
         <div class="god-row">
-          <label class="god-label">${t("settings_vibration")}</label>
+          <label class="god-label settings-vibration-label">
+            <span class="settings-vibration-icon">${ICO_VIBRATION}</span>
+            <span>${t("settings_vibration")}</span>
+          </label>
           <label class="toggle-switch" id="sv-wrap">
             <input type="checkbox" id="sv" ${loadVibration()?"checked":""}>
             <span class="toggle-track"></span>
@@ -365,6 +377,15 @@ function showSettings() {
           <input class="music-vol-slider" id="music-vol" type="range" min="0" max="100" value="${Math.round(loadMusicVolume()*100)}" />
           <span class="music-vol-icon">🔊</span>
           <span class="music-vol-pct" id="music-vol-pct">${Math.round(loadMusicVolume()*100)}%</span>
+        </div>
+      </div>
+      <div class="settings-section" id="sound-vol-section" style="opacity:.45;pointer-events:none">
+        <label class="settings-label">${t("settings_sound")}</label>
+        <div class="music-vol-row">
+          <span class="music-vol-icon">🔈</span>
+          <input class="music-vol-slider" id="sound-vol" type="range" min="0" max="100" value="50" disabled />
+          <span class="music-vol-icon">🔊</span>
+          <span class="music-vol-pct" id="sound-vol-pct">—</span>
         </div>
       </div>
       <div class="settings-version">${VERSION}</div>
@@ -413,7 +434,7 @@ function showGodModeModal(currentStageId?: number) {
   ov.className = "modal-overlay";
   ov.innerHTML = `
     <div class="modal-card god-card">
-      <div class="modal-header"><span>${t("god_mode")}</span><button class="modal-close" id="gc">✕</button></div>
+      <div class="modal-header">${sectionTitle(ICO_SETTINGS, t("god_mode"))}<button class="modal-close" id="gc">✕</button></div>
       <div class="settings-section">
         <div class="god-row">
           <label class="god-label">${t("god_unlimited_energy")}</label>
@@ -633,7 +654,7 @@ function showArcadeMap() {
     <div class="screen arcade-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>🕹️ Arcade</h2>
+        <h2>${sectionTitle(ICO_STAR, t("menu_arcade"))}</h2>
         <div id="energy-display" style="font-size:.75rem">${energyHTML()}</div>
       </div>
       <div class="stage-grid">${cells}</div>
@@ -667,7 +688,7 @@ function showBotSetup() {
     <div class="screen setup-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>🏋️ ${t("menu_bot")}</h2>
+        <h2>${sectionTitle(ICO_BARBELL, t("menu_bot"))}</h2>
         <span class="header-end-spacer"></span>
       </div>
       <div class="setup-section">
@@ -711,22 +732,22 @@ function showMultiSetup() {
     <div class="screen setup-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>👥 ${t("menu_multi")}</h2>
+        <h2>${sectionTitle(ICO_USERS, t("menu_multi"))}</h2>
       </div>
       <div class="setup-section">
         <label class="setup-label">${t("setup_players")}</label>
-        <div class="grid-size-row">${[2,3,4].map(n=>`<button class="btn-player-count" data-count="${n}">${n}</button>`).join("")}</div>
+        <div class="multi-grid multi-grid--players">${[2,3,4].map(n=>`<button class="btn-player-count" data-count="${n}"><span class="diff-icon">${ICO_USERS}</span>${t("n_players", { n })}</button>`).join("")}</div>
       </div>
       <div class="setup-section" id="team-section" style="display:none">
         <label class="setup-label">${t("setup_mode")}</label>
-        <div class="grid-size-row">
+        <div class="multi-grid multi-grid--teams">
           <button class="btn-team-mode selected" data-team="false">${t("setup_solo")}</button>
           <button class="btn-team-mode" data-team="true">${t("setup_teams")}</button>
         </div>
       </div>
       <div class="setup-section">
         <label class="setup-label">${t("setup_grid")}</label>
-        <div class="grid-size-row">${[3,4,5,6].map(n=>`<button class="btn-grid-size" data-size="${n}">${n}×${n}</button>`).join("")}</div>
+        <div class="multi-grid multi-grid--sizes">${[3,4,5,6].map(n=>`<button class="btn-grid-size" data-size="${n}"><span class="grid-size-label">${n}×${n}</span>${dotGridHTML(n)}</button>`).join("")}</div>
       </div>
       <button class="btn-start" id="btn-start" disabled>${t("setup_start")}</button>
     </div>`;
@@ -769,7 +790,7 @@ function showTutorial() {
     <div class="screen setup-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>🎓 ${t("menu_tutorial")}</h2>
+        <h2>${sectionTitle(ICO_BOOK, t("menu_tutorial"))}</h2>
         <span class="header-end-spacer"></span>
       </div>
       <div class="tut-steps">
@@ -821,10 +842,10 @@ function showGame() {
   if (!session) return;
   const s = session; stopEnergyTimer();
   const modeTitle = s.mode === "arcade"
-    ? `🕹️ ${t("stage_label", { id: s.stageId! })}`
+    ? sectionTitle(ICO_STAR, t("stage_label", { id: s.stageId! }))
     : s.mode === "vs-bot"
-    ? `🏋️ ${t("menu_bot")} · ${getDiffLabel(s.botDifficulty!)}`
-    : `👥 ${s.teamMode ? t("teams_2v2") : t("n_players", { n: s.playerCount! })}`;
+    ? sectionTitle(ICO_BARBELL, `${t("menu_bot")} · ${getDiffLabel(s.botDifficulty!)}`)
+    : sectionTitle(ICO_USERS, s.teamMode ? t("teams_2v2") : t("n_players", { n: s.playerCount! }));
 
   app.innerHTML = `
     <div class="screen game-screen">
@@ -997,6 +1018,7 @@ style.textContent = `
   --ui-accent-soft:rgba(6,182,212,0.14);
   --ui-accent-border:rgba(6,182,212,0.42);
   --ui-accent-glow:0 0 16px rgba(6,182,212,0.18);
+  --toggle-on:     #22c55e;
   --arcade-border: linear-gradient(135deg,#ec4899,#8b5cf6,#06b6d4);
   --arcade-glow:   0 0 24px rgba(139,92,246,0.25), 0 0 48px rgba(236,72,153,0.1);
   --title-gradient:linear-gradient(135deg,#f97316 0%,#a855f7 50%,#06b6d4 100%);
@@ -1017,6 +1039,7 @@ html[data-theme="light"] {
   --ui-accent-soft:rgba(59,130,246,0.12);
   --ui-accent-border:rgba(59,130,246,0.4);
   --ui-accent-glow:0 0 16px rgba(59,130,246,0.16);
+  --toggle-on:     #f59e0b;
   --arcade-border: linear-gradient(135deg,#3b82f6,#6366f1);
   --arcade-glow:   0 0 16px rgba(59,130,246,0.15);
   --title-gradient:none;
@@ -1037,6 +1060,7 @@ html[data-theme="pink"] {
   --ui-accent-soft:rgba(236,72,153,0.14);
   --ui-accent-border:rgba(236,72,153,0.4);
   --ui-accent-glow:0 0 16px rgba(236,72,153,0.18);
+  --toggle-on:     #ec4899;
   --arcade-border: linear-gradient(135deg,#ec4899,#f9a8d4);
   --arcade-glow:   0 0 16px rgba(236,72,153,0.2);
   --title-gradient:none;
@@ -1352,21 +1376,42 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
   display: flex; align-items: center; justify-content: space-between;
   width: 100%; gap: 10px; padding-bottom: 4px;
 }
-.screen-header h2 { flex: 1; text-align: center; font-size: 1.1rem; font-weight: 800; color: var(--text); }
+.screen-header h2 {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  text-align: center; font-size: 1.1rem; font-weight: 800; color: var(--text);
+  min-width: 0;
+}
+.section-title { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+.section-title-icon {
+  width: 28px; height: 28px; border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ui-accent-soft); border: 1px solid var(--ui-accent-border);
+  color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-soft) inset;
+  flex-shrink: 0;
+}
+.section-title-icon svg { width: 15px; height: 15px; flex-shrink: 0; }
+.section-title > span:last-child { min-width: 0; }
 .header-end-spacer { flex: 0 0 72px; }
 .btn-back {
-  background: var(--bg-2); border: 1px solid var(--border-strong);
-  border-radius: 10px; padding: 8px 14px; color: var(--text-2);
+  background: var(--ui-accent-soft); border: 1px solid var(--ui-accent-border);
+  border-radius: 10px; padding: 8px 14px; color: var(--ui-accent);
   cursor: pointer; font-size: .84rem; font-weight: 600;
   transition: all .15s; white-space: nowrap;
+  box-shadow: 0 0 0 1px var(--ui-accent-soft) inset;
 }
-.btn-back:hover { background: var(--bg-3); color: var(--text); }
+.btn-back:hover {
+  background: var(--bg-3); color: var(--ui-accent);
+  box-shadow: 0 0 0 1px var(--ui-accent-border) inset, var(--ui-accent-glow);
+}
 .btn-god-corner {
-  background: var(--bg-2); border: 1px solid rgba(243,156,18,.3);
-  border-radius: 10px; padding: 6px 10px; color: #f39c12;
+  background: var(--ui-accent-soft); border: 1px solid var(--ui-accent-border);
+  border-radius: 10px; padding: 6px 10px; color: var(--ui-accent);
   cursor: pointer; font-size: .95rem; transition: all .15s;
+  box-shadow: 0 0 0 1px var(--ui-accent-soft) inset;
 }
-.btn-god-corner:hover { background: var(--bg-3); }
+.btn-god-corner:hover {
+  background: var(--bg-3); box-shadow: 0 0 0 1px var(--ui-accent-border) inset, var(--ui-accent-glow);
+}
 
 /* ── ARCADE MAP ──────────────────────────────────────────────── */
 .stage-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; width: 100%; padding-bottom: 24px; }
@@ -1403,13 +1448,13 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
 .diff-icon { font-size: 1rem; flex-shrink: 0; }
 .btn-diff--easy  { border-color: rgba(6,182,212,.4); }
 .btn-diff--easy:hover  { border-color: #06b6d4; background: rgba(6,182,212,.06); }
-.btn-diff--easy.selected  { background: rgba(6,182,212,.14); border-color: #06b6d4; color: #06b6d4; }
+.btn-diff--easy.selected  { background: var(--ui-accent-soft); border-color: var(--ui-accent-border); color: var(--ui-accent); }
 .btn-diff--hard  { border-color: rgba(168,85,247,.4); }
 .btn-diff--hard:hover  { border-color: #a855f7; background: rgba(168,85,247,.06); }
-.btn-diff--hard.selected  { background: rgba(168,85,247,.14); border-color: #a855f7; color: #a855f7; }
+.btn-diff--hard.selected  { background: var(--ui-accent-soft); border-color: var(--ui-accent-border); color: var(--ui-accent); }
 .btn-diff--wild  { border-color: rgba(249,115,22,.4); }
 .btn-diff--wild:hover  { border-color: #f97316; background: rgba(249,115,22,.06); }
-.btn-diff--wild.selected  { background: rgba(249,115,22,.14); border-color: #f97316; color: #f97316; }
+.btn-diff--wild.selected  { background: var(--ui-accent-soft); border-color: var(--ui-accent-border); color: var(--ui-accent); }
 /* Grid size buttons with dot preview */
 .btn-grid-size { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px; }
 .btn-grid-size:hover { background: var(--bg-3); }
@@ -1418,6 +1463,12 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
 .dot-grid-preview { display: grid; gap: 3px; }
 .dot-preview { width: 5px; height: 5px; border-radius: 50%; background: rgba(140,155,180,.4); }
 .btn-grid-size.selected .dot-preview { background: var(--ui-accent); }
+.multi-grid { display: grid; gap: 8px; width: 100%; }
+.multi-grid--players { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.multi-grid--teams,
+.multi-grid--sizes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.btn-player-count { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; }
+.btn-team-mode { min-height: 48px; }
 .grid-size-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .grid-size-row > * { flex: 1; min-width: 70px; }
 .btn-start {
@@ -1481,6 +1532,9 @@ canvas { max-width: 100%; height: auto; border-radius: 14px; background: #fff; b
 .btn-theme-opt svg { flex-shrink: 0; }
 .btn-theme-opt:hover { border-color: var(--ui-accent-border); color: var(--ui-accent); }
 .btn-theme-opt.active { background: var(--ui-accent-soft); border-color: var(--ui-accent-border); color: var(--ui-accent); }
+.settings-vibration-label { display: inline-flex; align-items: center; gap: 8px; }
+.settings-vibration-icon { display: inline-flex; align-items: center; justify-content: center; color: var(--ui-accent); }
+.settings-vibration-icon svg { width: 16px; height: 16px; flex-shrink: 0; }
 .settings-version { font-size: .72rem; color: var(--text-3); text-align: center; }
 .settings-lang { margin-top: 0; }
 .music-vol-row { display: flex; align-items: center; gap: 8px; width: 100%; }
@@ -1502,16 +1556,15 @@ html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
   background: #fff; top: 3px; left: 3px;
   transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3);
 }
-.toggle-switch input:checked + .toggle-track { background: #22c55e; }
+.toggle-switch input:checked + .toggle-track { background: var(--toggle-on); }
 .toggle-switch input:checked + .toggle-track::after { transform: translateX(20px); }
-html[data-theme="pink"] .toggle-switch input:checked + .toggle-track { background: #ec4899; }
 
 /* God Mode */
 .god-card { border-color: rgba(243,156,18,.3); }
 .god-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .god-label { font-size: .88rem; color: var(--text-2); font-weight: 600; }
 .god-toggle { background: var(--bg-3); border: 1px solid var(--border-strong); border-radius: 8px; padding: 7px 16px; color: var(--text-2); font-weight: 700; cursor: pointer; transition: all .15s; font-size: .85rem; }
-.god-toggle.on { background: rgba(243,156,18,.15); border-color: #f39c12; color: #f39c12; }
+.god-toggle.on { background: var(--ui-accent-soft); border-color: var(--ui-accent-border); color: var(--ui-accent); }
 .god-input-row { display: flex; gap: 8px; }
 .god-input { background: var(--bg-3); border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: .9rem; width: 90px; outline: none; }
 .god-input:focus { border-color: var(--ui-accent-border); }
@@ -1549,14 +1602,14 @@ html[data-theme="pink"] .toggle-switch input:checked + .toggle-track { backgroun
 /* ── TUTORIAL ────────────────────────────────────────────────── */
 .tut-steps { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 .tut-step { display: flex; align-items: flex-start; gap: 12px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
-.tut-step-num { width: 28px; height: 28px; border-radius: 50%; background: rgba(245,158,11,.15); border: 1.5px solid rgba(245,158,11,.55); color: #f59e0b; font-weight: 800; font-size: .85rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tut-step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--ui-accent-soft); border: 1.5px solid var(--ui-accent-border); color: var(--ui-accent); font-weight: 800; font-size: .85rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .tut-step-body { display: flex; flex-direction: column; gap: 3px; }
 .tut-step-body strong { font-size: .9rem; font-weight: 700; color: var(--text); }
 .tut-step-body span { font-size: .78rem; color: var(--text-2); line-height: 1.4; }
 .tut-board-hint { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; width: 100%; }
 .tut-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; padding: 4px; }
 .tut-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(140,155,180,.45); }
-.tut-dot--hl { background: #06b6d4; box-shadow: 0 0 8px #06b6d4; }
+.tut-dot--hl { background: var(--ui-accent); box-shadow: 0 0 8px var(--ui-accent); }
 .tut-hint-text { font-size: .76rem; color: var(--text-2); text-align: center; }
 
 .fail-skip-section { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08); }
