@@ -8,10 +8,30 @@ import {
   loadGodMode, saveGodMode, GodModeConfig,
   loadTheme, saveTheme, applyTheme, Theme,
   getAvailableSkips, useSkip, setSkipCount, SKIPS_PER_WEEK,
+  loadVibration, saveVibration, vibrate,
+  loadMusicVolume, saveMusicVolume,
+  loadMute, saveMute,
 } from "./storage";
 import { t, getCurrentLang, setLang, LANG_NAMES, Lang } from "./i18n";
 import { Line, lineKey } from "../models/line";
 import "flag-icons/css/flag-icons.min.css";
+
+// ── Tabler Icons — 6 ícones inline (MIT, https://tabler.io/icons) ──────────
+// SVGs extraídos de @tabler/icons/icons/outline/ — sem import ?raw (bloqueado pelo exports do pacote)
+const TABLER_ATTRS = `xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"`;
+const TABLER_CLR   = `<path stroke="none" d="M0 0h24v24H0z" fill="none"/>`;
+function tablerSvg(size: number, paths: string): string {
+  return `<svg ${TABLER_ATTRS} width="${size}" height="${size}" viewBox="0 0 24 24">${TABLER_CLR}${paths}</svg>`;
+}
+const MENU_ICON_SIZE     = 22;
+const PLATFORM_ICON_SIZE = 16;
+const ICO_BARBELL    = tablerSvg(MENU_ICON_SIZE,     `<path d="M2 12h1"/><path d="M6 8h-2a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/><path d="M6 7v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-10a1 1 0 0 0-1-1h-1a1 1 0 0 0-1 1"/><path d="M9 12h6"/><path d="M15 7v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-10a1 1 0 0 0-1-1h-1a1 1 0 0 0-1 1"/><path d="M18 8h2a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2"/><path d="M22 12h-1"/>`);
+const ICO_USERS      = tablerSvg(MENU_ICON_SIZE,     `<path d="M5 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/>`);
+const ICO_BOOK       = tablerSvg(MENU_ICON_SIZE,     `<path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6l0 13"/><path d="M12 6l0 13"/><path d="M21 6l0 13"/>`);
+const ICO_ANDROID    = tablerSvg(PLATFORM_ICON_SIZE, `<path d="M4 10l0 6"/><path d="M20 10l0 6"/><path d="M7 9h10v8a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-8a5 5 0 0 1 10 0"/><path d="M8 3l1 2"/><path d="M16 3l-1 2"/><path d="M9 18l0 3"/><path d="M15 18l0 3"/>`);
+const ICO_APPLE      = tablerSvg(PLATFORM_ICON_SIZE, `<path d="M8.286 7.008c-3.216 0-4.286 3.23-4.286 5.92c0 3.229 2.143 8.072 4.286 8.072c1.165-.05 1.799-.538 3.214-.538c1.406 0 1.607.538 3.214.538s4.286-3.229 4.286-5.381c-.03-.011-2.649-.434-2.679-3.23c-.02-2.335 2.589-3.179 2.679-3.228c-1.096-1.606-3.162-2.113-3.75-2.153c-1.535-.12-3.032 1.077-3.75 1.077c-.729 0-2.036-1.077-3.214-1.077"/><path d="M12 4a2 2 0 0 0 2-2a2 2 0 0 0-2 2"/>`);
+const ICO_DEVICES_PC = tablerSvg(PLATFORM_ICON_SIZE, `<path d="M3 5h6v14h-6l0-14"/><path d="M12 9h10v7h-10l0-7"/><path d="M14 19h6"/><path d="M17 16v3"/><path d="M6 13v.01"/><path d="M6 16v.01"/>`);
+const ICO_STAR       = tablerSvg(MENU_ICON_SIZE,     `<path d="M12 17.75l-6.172 3.245l1.179-6.873l-5-4.867l6.9-1l3.086-6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873l-6.158-3.245"/>`);
 
 // ── Versionamento ─────────────────────────────────────────────────────────
 // Regra obrigatória para qualquer IA ou desenvolvedor:
@@ -20,7 +40,7 @@ import "flag-icons/css/flag-icons.min.css";
 //   Formato: v{major}.{minor}.{patch}
 //   Exemplos: v0.1.98 → v0.1.99 → v0.2.0 → v0.2.1
 //   NUNCA alterar major sem decisão explícita do responsável pelo projeto.
-const VERSION = "v0.01.20";
+const VERSION = "v0.01.31";
 
 // ── Estado global ─────────────────────────────────────────────────────────
 interface GameSession {
@@ -44,6 +64,33 @@ const app = document.getElementById("app")!;
 const PLAYER_COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12"];
 
 applyTheme();
+
+// ── Música de fundo ───────────────────────────────────────────────────────
+const bgMusic = new Audio("./bg_music.mp3");
+bgMusic.loop = true;
+bgMusic.preload = "none"; // não bloqueia o boot — carrega só quando necessário
+bgMusic.volume = 0;       // começa mudo para o fade-in
+bgMusic.muted = loadMute();
+
+function fadeInMusic(targetVol: number, durationMs = 5000) {
+  const steps = 60;
+  const interval = durationMs / steps;
+  const step = targetVol / steps;
+  let current = 0;
+  const timer = setInterval(() => {
+    current = Math.min(current + step, targetVol);
+    bgMusic.volume = current;
+    if (current >= targetVol) clearInterval(timer);
+  }, interval);
+}
+
+function startMusic() {
+  if (bgMusic.paused) {
+    bgMusic.play().then(() => fadeInMusic(loadMusicVolume())).catch(() => {});
+  }
+}
+document.addEventListener("click",      startMusic, { once: true });
+document.addEventListener("touchstart", startMusic, { once: true, passive: true });
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function playerNames() { return [1,2,3,4].map((n) => t("player_n", { n })); }
@@ -136,6 +183,47 @@ function launchConfetti(dur = 3200) {
   })();
 }
 
+// ── Frases de incentivo ───────────────────────────────────────────────────
+const PHRASES_3: readonly string[] = [
+  "Parabéns!", "Mandou muito!", "Excelente!", "Perfeito!", "Arrasou!",
+  "Show demais!", "Você brilhou!", "Sensacional!", "Incrível!", "Missão completa!",
+  "Jogada perfeita!", "Resultado top!", "Você dominou!", "Que vitória!", "Muito bem!",
+  "Desempenho incrível!", "Nota máxima!", "Você é fera!", "Trabalho impecável!", "Vitória com estilo!",
+];
+const PHRASES_2: readonly string[] = [
+  "Boa!", "Legal!", "Foi bem!", "Bom trabalho!", "Quase lá!",
+  "Continue assim!", "Bom resultado!", "Mandou bem!", "Boa tentativa!", "Está evoluindo!",
+  "Nada mal!", "Segue firme!", "Bom avanço!", "Você conseguiu!", "Tá no caminho!",
+  "Bem jogado!", "Foi positivo!", "Boa partida!", "Progresso feito!", "Mais uma etapa!",
+];
+const PHRASES_1: readonly string[] = [
+  "Bom trabalho!", "Boa jogada!", "Foi muito bem!", "Continue assim!",
+  "Segue firme!", "Boa partida!", "Mandou bem!", "Você conseguiu!",
+];
+const PHRASES_DEFEAT: readonly string[] = [
+  "Não foi dessa vez!", "Quase lá!", "Tente novamente!", "Você consegue!",
+  "Foi por pouco!", "Continue tentando!", "A próxima é sua!", "Não desista!",
+  "Boa tentativa!", "Hora da revanche!", "Mais uma chance!", "Você está evoluindo!",
+  "Faz parte do jogo!", "Dá para virar!", "Vamos de novo!", "Aprendizado feito!",
+  "Faltou pouco!", "Na próxima vai!", "Respira e tenta de novo!", "O jogo ainda não acabou!",
+];
+const PHRASES_DRAW: readonly string[] = [
+  "Empate!", "Deu empate!", "Jogo equilibrado!", "Foi parelho!", "Ninguém levou!",
+  "Disputa acirrada!", "Boa partida!", "Bem disputado!", "Quase vitória!", "Equilíbrio total!",
+  "Jogo justo!", "Batalha equilibrada!", "Ficou no empate!", "Ninguém cedeu!",
+  "Partida apertada!", "Resultado equilibrado!", "Deu tudo igual!", "Grande disputa!",
+  "Um duelo de respeito!", "Hora da revanche!",
+];
+
+function pickPhrase(stars: 0|1|2|3): string {
+  const list = stars >= 3 ? PHRASES_3 : stars === 2 ? PHRASES_2 : PHRASES_1;
+  return list[Math.floor(Math.random() * list.length)]!;
+}
+function pickResultPhrase(tied: boolean): string {
+  const list = tied ? PHRASES_DRAW : PHRASES_DEFEAT;
+  return list[Math.floor(Math.random() * list.length)]!;
+}
+
 // ── Celebração ────────────────────────────────────────────────────────────
 function showCelebration(stars: 0|1|2|3, xp: number, label: string, nextId: number|null, onNext: ()=>void, onMap: ()=>void, mainTitle?: string) {
   launchConfetti();
@@ -149,6 +237,7 @@ function showCelebration(stars: 0|1|2|3, xp: number, label: string, nextId: numb
       ${label ? `<div class="cel-label">${label}</div>` : ""}
       <div class="cel-title">${mainTitle ?? t("stage_complete")}</div>
       <div class="cel-stars">${starsHtml}</div>
+      <div class="cel-phrase">${pickPhrase(stars)}</div>
       ${xp > 0 ? `<div class="cel-xp">${t("xp_gained", { xp })}</div>` : ""}
       <div class="cel-actions" id="cel-actions">
         ${nextId ? `<button class="btn-cel-next" id="btn-cel-next">${t("next_stage")}</button>` : ""}
@@ -179,6 +268,7 @@ function showFailBanner(onRetry: ()=>void, onMap: ()=>void, tied = false, skipIn
     <div class="fail-card">
       <div class="fail-emoji">${tied ? "🤝" : "😞"}</div>
       <div class="fail-title">${tied ? t("you_tied") : t("you_lost")}</div>
+      <div class="fail-phrase">${pickResultPhrase(tied)}</div>
       <div class="fail-actions">
         <button class="btn-retry-pay" id="fr">${t("try_again")}</button>
         <button class="btn-cel-map" id="fm">${t("map")}</button>
@@ -231,14 +321,41 @@ function showSettings() {
       <div class="settings-section">
         <label class="settings-label">${t("theme")}</label>
         <div class="theme-row">
-          <button class="btn-theme-opt ${cur==="dark"?"active":""}" data-theme="dark">${t("theme_dark")}</button>
-          <button class="btn-theme-opt ${cur==="light"?"active":""}" data-theme="light">${t("theme_light")}</button>
-          <button class="btn-theme-opt ${cur==="pink"?"active":""}" data-theme="pink">${t("theme_pink")}</button>
+          <button class="btn-theme-opt ${cur==="dark"?"active":""}" data-theme="dark">${t("theme_dark").replace(/^.\s/,"")}</button>
+          <button class="btn-theme-opt ${cur==="light"?"active":""}" data-theme="light">${t("theme_light").replace(/^.\s/,"")}</button>
+          <button class="btn-theme-opt ${cur==="pink"?"active":""}" data-theme="pink">${t("theme_pink").replace(/^.\s/,"")}</button>
         </div>
       </div>
       <div class="settings-section">
         <label class="settings-label">${t("lang_label")}</label>
         <div class="lang-selector settings-lang">${langSelectorInner()}</div>
+      </div>
+      <div class="settings-section">
+        <div class="god-row">
+          <label class="god-label">${t("settings_vibration")}</label>
+          <label class="toggle-switch" id="sv-wrap">
+            <input type="checkbox" id="sv" ${loadVibration()?"checked":""}>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="god-row">
+          <label class="god-label">${t("settings_mute")}</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="sm" ${loadMute()?"checked":""}>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+      <div class="settings-section" id="music-vol-section" style="${loadMute()?"opacity:.4;pointer-events:none":""}">
+        <label class="settings-label">${t("settings_music")}</label>
+        <div class="music-vol-row">
+          <span class="music-vol-icon">🔇</span>
+          <input class="music-vol-slider" id="music-vol" type="range" min="0" max="100" value="${Math.round(loadMusicVolume()*100)}" />
+          <span class="music-vol-icon">🔊</span>
+          <span class="music-vol-pct" id="music-vol-pct">${Math.round(loadMusicVolume()*100)}%</span>
+        </div>
       </div>
       <div class="settings-version">${VERSION}</div>
     </div>`;
@@ -248,7 +365,8 @@ function showSettings() {
   ov.querySelectorAll(".btn-theme-opt").forEach((b) => {
     (b as HTMLElement).onclick = () => {
       saveTheme((b as HTMLElement).dataset["theme"] as Theme);
-      ov.remove(); showMenu();
+      ov.querySelectorAll(".btn-theme-opt").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
     };
   });
   ov.querySelectorAll(".btn-lang").forEach((b) => {
@@ -256,6 +374,26 @@ function showSettings() {
       setLang((b as HTMLElement).dataset["lang"] as Lang);
       ov.remove(); showMenu();
     };
+  });
+  ov.querySelector<HTMLInputElement>("#sv")?.addEventListener("change", (e) => {
+    const on = (e.target as HTMLInputElement).checked;
+    saveVibration(on);
+    if (on) vibrate(30);
+  });
+  ov.querySelector<HTMLInputElement>("#sm")?.addEventListener("change", (e) => {
+    const muted = (e.target as HTMLInputElement).checked;
+    saveMute(muted);
+    bgMusic.muted = muted;
+    const sec = ov.querySelector<HTMLElement>("#music-vol-section");
+    if (sec) { sec.style.opacity = muted ? ".4" : ""; sec.style.pointerEvents = muted ? "none" : ""; }
+  });
+  ov.querySelector<HTMLInputElement>("#music-vol")?.addEventListener("input", (e) => {
+    const vol = parseInt((e.target as HTMLInputElement).value, 10) / 100;
+    saveMusicVolume(vol);
+    bgMusic.volume = vol;
+    const pct = ov.querySelector<HTMLElement>("#music-vol-pct");
+    if (pct) pct.textContent = `${Math.round(vol * 100)}%`;
+    if (bgMusic.paused && vol > 0) bgMusic.play().catch(() => {});
   });
 }
 
@@ -395,7 +533,7 @@ function showMenu() {
 
       <div class="menu-buttons">
         <button class="btn-menu btn-arcade" id="btn-arcade">
-          <div class="btn-menu-icon-wrap btn-icon--arcade">☆</div>
+          <div class="btn-menu-icon-wrap btn-icon--arcade">${ICO_STAR}</div>
           <div class="btn-menu-text">
             <strong>${t("menu_arcade")}</strong>
             <small>${t("menu_arcade_sub", { done, total: INITIAL_STAGES })}</small>
@@ -403,14 +541,14 @@ function showMenu() {
           ${isNew ? `<span class="badge-new">NEW</span>` : ""}
         </button>
         <button class="btn-menu btn-bot" id="btn-bot">
-          <div class="btn-menu-icon-wrap btn-icon--bot">🏋️</div>
+          <div class="btn-menu-icon-wrap btn-icon--bot">${ICO_BARBELL}</div>
           <div class="btn-menu-text">
             <strong>${t("menu_bot")}</strong>
             <small>${t("menu_bot_sub")}</small>
           </div>
         </button>
         <button class="btn-menu btn-multi" id="btn-multi">
-          <div class="btn-menu-icon-wrap btn-icon--multi">👥</div>
+          <div class="btn-menu-icon-wrap btn-icon--multi">${ICO_USERS}</div>
           <div class="btn-menu-text">
             <strong>${t("menu_multi")}</strong>
             <small>${t("menu_multi_sub")}</small>
@@ -421,7 +559,7 @@ function showMenu() {
       ${langSelectorHTML()}
 
       <button class="btn-menu btn-tutorial" id="btn-tutorial">
-        <div class="btn-menu-icon-wrap btn-icon--tutorial">🕹️</div>
+        <div class="btn-menu-icon-wrap btn-icon--tutorial">${ICO_BOOK}</div>
         <div class="btn-menu-text">
           <strong>${t("menu_tutorial")}</strong>
           <small>${t("menu_tutorial_sub")}</small>
@@ -429,16 +567,16 @@ function showMenu() {
       </button>
 
       <div class="theme-toggle-wrap">
-        <button class="theme-toggle-opt ${loadTheme()==="dark"?"active":""}" data-t="dark">🌙 ${t("theme_dark").replace("🌙 ","")}</button>
-        <button class="theme-toggle-opt ${loadTheme()==="light"?"active":""}" data-t="light">☀️ ${t("theme_light").replace("☀️ ","")}</button>
-        <button class="theme-toggle-opt ${loadTheme()==="pink"?"active":""}" data-t="pink">🌸 ${t("theme_pink").replace("🌸 ","")}</button>
+        <button class="theme-toggle-opt ${loadTheme()==="dark"?"active":""}" data-t="dark" title="${t("theme_dark").replace(/^.\s/,"")}">🌙</button>
+        <button class="theme-toggle-opt ${loadTheme()==="light"?"active":""}" data-t="light" title="${t("theme_light").replace(/^.\s/,"")}">☀️</button>
+        <button class="theme-toggle-opt ${loadTheme()==="pink"?"active":""}" data-t="pink" title="${t("theme_pink").replace(/^.\s/,"")}">🌸</button>
       </div>
 
       <div class="bottom-bar">
         <div class="platform-pills">
-          <span class="platform-pill">PC</span>
-          <span class="platform-pill">Android</span>
-          <span class="platform-pill">IOS</span>
+          <span class="platform-pill">${ICO_DEVICES_PC} PC</span>
+          <span class="platform-pill">${ICO_ANDROID} Android</span>
+          <span class="platform-pill">${ICO_APPLE} IOS</span>
         </div>
         <div class="bottom-star">✦</div>
         <div class="version-tag">${VERSION}</div>
@@ -802,9 +940,14 @@ function showGame() {
     if (st.status==="finished"||s.botThinking||isBotTurn()||line.ownerId!==null) return;
     const scoreBefore = s.botPlayerId != null ? (st.players.find((p)=>p.id!==s.botPlayerId)?.score ?? 0) : 0;
     s.controller.playLine(line); hoverLine=null; draw();
+    const scoreAfterMove = s.botPlayerId != null ? (s.controller.getState().players.find((p)=>p.id!==s.botPlayerId)?.score ?? 0) : 0;
+    if (scoreAfterMove > scoreBefore) {
+      vibrate([40, 20, 40]); // ponto marcado — vibração dupla mais forte
+    } else {
+      vibrate(18); // jogada sem ponto — vibração leve
+    }
     if (s.mode === "arcade" && s.botPlayerId != null) {
-      const scoreAfter = s.controller.getState().players.find((p)=>p.id!==s.botPlayerId)?.score ?? 0;
-      const closed = scoreAfter - scoreBefore;
+      const closed = scoreAfterMove - scoreBefore;
       if (closed > (s.maxChain ?? 0)) s.maxChain = closed;
     }
     if (isBotTurn()&&s.controller.getState().status!=="finished") scheduleBotMove();
@@ -1015,6 +1158,7 @@ html[data-theme="pink"] .menu-logo h1 {
   display: flex; align-items: center; justify-content: center;
   font-size: 1.35rem; transition: transform .15s;
 }
+.btn-menu-icon-wrap svg { display: block; flex-shrink: 0; }
 .btn-menu:hover .btn-menu-icon-wrap { transform: scale(1.08); }
 .btn-menu-text { flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center; }
 .btn-menu-text strong { font-size: .98rem; display: block; font-weight: 700; }
@@ -1026,7 +1170,7 @@ html[data-theme="pink"] .menu-logo h1 {
   box-shadow: 0 0 14px rgba(6,182,212,.12);
 }
 .btn-arcade:hover { border-color: #06b6d4; background: rgba(0,0,0,.9); box-shadow: 0 0 22px rgba(6,182,212,.22); }
-.btn-icon--arcade { background: rgba(6,182,212,.14); border: 1.5px solid rgba(6,182,212,.5); color: #06b6d4; }
+.btn-icon--arcade { background: rgba(6,182,212,.14); border: 1.5px solid rgba(6,182,212,.5); }
 
 /* Bot */
 .btn-bot {
@@ -1134,9 +1278,11 @@ html[data-theme="pink"] .btn-lang.active { border-color: #ec4899; }
   background: var(--bg-2);
 }
 .platform-pill {
+  display: flex; align-items: center; gap: 4px;
   font-size: .75rem; font-weight: 800;
   color: var(--text-2); letter-spacing: .8px;
 }
+.platform-pill svg { flex-shrink: 0; }
 .bottom-star {
   position: absolute; right: 0; bottom: 2px;
   font-size: 1.3rem; color: var(--text-3); opacity: .5;
@@ -1281,6 +1427,28 @@ canvas { max-width: 100%; height: auto; border-radius: 14px; background: #fff; b
 .btn-theme-opt.active { background: rgba(59,157,248,.15); border-color: #3b9df8; color: #3b9df8; }
 .settings-version { font-size: .72rem; color: var(--text-3); text-align: center; }
 .settings-lang { margin-top: 0; }
+.music-vol-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+.music-vol-icon { font-size: 1rem; flex-shrink: 0; }
+.music-vol-slider { flex: 1; height: 4px; accent-color: #3b9df8; cursor: pointer; border-radius: 4px; }
+.music-vol-pct { font-size: .78rem; font-weight: 700; color: var(--text-2); min-width: 36px; text-align: right; }
+html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
+
+/* Toggle switch (vibração) */
+.toggle-switch { position: relative; width: 46px; height: 26px; cursor: pointer; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-track {
+  position: absolute; inset: 0; border-radius: 13px;
+  background: var(--border-strong); transition: background .2s;
+}
+.toggle-track::after {
+  content: ""; position: absolute;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; top: 3px; left: 3px;
+  transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+}
+.toggle-switch input:checked + .toggle-track { background: #22c55e; }
+.toggle-switch input:checked + .toggle-track::after { transform: translateX(20px); }
+html[data-theme="pink"] .toggle-switch input:checked + .toggle-track { background: #ec4899; }
 
 /* God Mode */
 .god-card { border-color: rgba(243,156,18,.3); }
@@ -1305,6 +1473,7 @@ canvas { max-width: 100%; height: auto; border-radius: 14px; background: #fff; b
 .cel-stars { display: flex; gap: 10px; }
 .cel-star { font-size: 3rem; color: #333; animation: starPop .4s both; }
 .cel-star.earned { color: #f39c12; text-shadow: 0 0 24px #f39c12cc; }
+.cel-phrase { font-size: 1.1rem; font-weight: 700; color: #e6edf3; letter-spacing: .3px; animation: fadeInUp .4s .85s both; text-align: center; }
 .cel-xp { font-size: 1.6rem; font-weight: 800; color: #2ecc71; animation: fadeInUp .5s 1s both; text-shadow: 0 0 12px #2ecc7166; }
 .cel-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 .btn-cel-next { background: linear-gradient(135deg,#2ecc71,#27ae60); border: none; border-radius: 12px; padding: 14px 28px; color: #fff; font-size: 1rem; font-weight: 800; cursor: pointer; transition: transform .1s; box-shadow: 0 4px 16px #2ecc7144; }
@@ -1317,6 +1486,7 @@ canvas { max-width: 100%; height: auto; border-radius: 14px; background: #fff; b
 .fail-card { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; background: #1a0010; border: 1px solid rgba(231,76,60,.3); border-radius: 20px; padding: 32px 40px; }
 .fail-emoji { font-size: 3.5rem; animation: bounceIn .5s both; }
 .fail-title { font-size: 1.8rem; font-weight: 900; color: #e74c3c; animation: fadeInUp .4s .2s both; }
+.fail-phrase { font-size: 1rem; font-weight: 600; color: #e6edf3; letter-spacing: .3px; animation: fadeInUp .4s .45s both; text-align: center; }
 .fail-actions { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 .btn-retry-pay { background: #e74c3c; border: none; border-radius: 10px; padding: 12px 24px; color: #fff; font-weight: 700; cursor: pointer; font-size: .95rem; transition: background .15s; }
 .btn-retry-pay:hover { background: #c0392b; }
@@ -1366,6 +1536,12 @@ canvas { max-width: 100%; height: auto; border-radius: 14px; background: #fff; b
 @keyframes starPop   { 0%{transform:scale(0) rotate(-45deg);opacity:0} 60%{transform:scale(1.3) rotate(8deg)} 100%{transform:scale(1) rotate(0);opacity:1} }
 `;
 document.head.appendChild(style);
+
+// ── Vibração global em botões ─────────────────────────────────────────────
+document.addEventListener("click", (e) => {
+  const el = e.target as Element;
+  if (el.closest("button") && !el.closest("canvas")) vibrate(8);
+}, { passive: true });
 
 // ── Boot ──────────────────────────────────────────────────────────────────
 showMenu();

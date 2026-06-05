@@ -41,6 +41,42 @@ export function setSkipCount(n: number): void {
   localStorage.setItem(SKIPS_KEY, JSON.stringify(data));
 }
 
+// ── Volume da música ──────────────────────────────────────────────────────
+const MUSIC_VOL_KEY = "dab_music_vol";
+const MUTE_KEY = "dab_mute";
+export function loadMute(): boolean {
+  return localStorage.getItem(MUTE_KEY) === "1";
+}
+export function saveMute(on: boolean): void {
+  localStorage.setItem(MUTE_KEY, on ? "1" : "0");
+}
+
+export function loadMusicVolume(): number {
+  const v = localStorage.getItem(MUSIC_VOL_KEY);
+  return v === null ? 0.25 : Math.max(0, Math.min(1, parseFloat(v)));
+}
+export function saveMusicVolume(vol: number): void {
+  localStorage.setItem(MUSIC_VOL_KEY, String(Math.max(0, Math.min(1, vol))));
+}
+
+// ── Vibração háptica ──────────────────────────────────────────────────────
+const VIBRATION_KEY = "dab_vibration";
+export function loadVibration(): boolean {
+  const v = localStorage.getItem(VIBRATION_KEY);
+  return v === null ? true : v === "1"; // padrão: ativo
+}
+export function saveVibration(on: boolean): void {
+  localStorage.setItem(VIBRATION_KEY, on ? "1" : "0");
+}
+export function vibrate(pattern: number | number[]): void {
+  if (!loadVibration()) return;
+  try {
+    if (typeof window !== "undefined" && window.navigator?.vibrate) {
+      window.navigator.vibrate(pattern);
+    }
+  } catch {}
+}
+
 // ── Tema ──────────────────────────────────────────────────────────────────
 export type Theme = "dark" | "light" | "pink";
 const THEME_KEY = "dab_theme";
