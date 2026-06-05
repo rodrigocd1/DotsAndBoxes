@@ -738,10 +738,18 @@ body::before {
   background-repeat: no-repeat;
 }
 html[data-theme="dark"] body::before {
-  background-image: url('./bg-dark.jpeg');
+  background-image: url('./bg-dark-mobile.jpeg');
 }
 html[data-theme="light"] body::before {
-  background-image: url('./bg-light.jpeg');
+  background-image: url('./bg-light-mobile.jpeg');
+}
+@media (min-width: 768px) {
+  html[data-theme="dark"] body::before {
+    background-image: url('./bg-dark.jpeg');
+  }
+  html[data-theme="light"] body::before {
+    background-image: url('./bg-light.jpeg');
+  }
 }
 
 #app { width: 100%; max-width: 560px; position: relative; z-index: 1; }
