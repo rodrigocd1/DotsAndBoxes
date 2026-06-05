@@ -23,6 +23,10 @@ cd android; .\gradlew assembleDebug; cd ..
 - `ANDROID_HOME` deve ser setado se não estiver no ambiente
 
 **Atalho:** `npm run apk` executa build + sync + gradle automaticamente.
+
+**Ícones:** todos os ícones do projeto vêm de **https://tabler.io/icons** (MIT License).
+SVGs são usados como constantes inline em `src/ui/main.ts` (campo `exports` do pacote `@tabler/icons` bloqueia `?raw` no Vite).
+Para adicionar um novo ícone: abrir o site, copiar o SVG, extrair os `<path>` e usar `tablerSvg(size, paths)` para outline ou `tablerSvgFilled(size, paths)` para filled.
 Após o gradle, copiar manualmente com o nome `DotsAndBoxes-v{VERSION}.apk` para o Desktop.
 
 ---
