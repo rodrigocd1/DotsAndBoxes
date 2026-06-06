@@ -10,9 +10,11 @@ export const LANG_NAMES: Record<Lang, string> = {
 const LANG_KEY = "dab_lang";
 
 export function getCurrentLang(): Lang {
-  const stored = localStorage.getItem(LANG_KEY) as Lang | null;
+  const stored = typeof localStorage !== "undefined"
+    ? (localStorage.getItem(LANG_KEY) as Lang | null)
+    : null;
   if (stored && stored in LANG_NAMES) return stored;
-  const nav = navigator.language ?? "";
+  const nav = typeof navigator !== "undefined" ? (navigator.language ?? "") : "";
   if (nav.startsWith("pt-PT")) return "pt-PT";
   if (nav.startsWith("pt"))    return "pt-BR";
   if (nav.startsWith("es"))    return "es";
@@ -20,7 +22,9 @@ export function getCurrentLang(): Lang {
 }
 
 export function setLang(lang: Lang): void {
-  localStorage.setItem(LANG_KEY, lang);
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(LANG_KEY, lang);
+  }
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
@@ -94,6 +98,11 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     game_turn_you: "Sua vez!",
     game_bot_thinking: "IA pensando...",
     stage_label: "Fase {id}",
+    stage_header: "Fase {id} - Dificuldade {diff}",
+    stage_intro_title: "Bem-vindo à dificuldade {diff}",
+    stage_intro_copy: "A fase {id} começou. Boa sorte!",
+    stage_intro_start: "Começar",
+    stage_intro_map: "Voltar ao mapa",
     vs_bot_label: "vs IA — {diff}",
     teams_2v2: "Duplas 2v2",
     n_players: "{n} Jogadores",
@@ -143,8 +152,16 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     god_go: "IR",
     god_next: "⏭ Próxima fase ({id})",
     god_refill: "⚡ Recarregar energia",
+    god_phase_tools: "Teste da fase",
+    god_complete_win: "Completar como vitória",
+    god_complete_loss: "Completar como derrota",
+    god_energy_tools: "Teste de energia",
+    god_zero_energy: "Zerar energia",
     god_activated: "👑 God Mode ATIVADO!",
     god_deactivated: "God Mode desativado",
+    god_energy_zeroed: "Energia zerada",
+    god_forced_win: "Fase concluída como vitória",
+    god_forced_loss: "Fase concluída como derrota",
     on_label: "ON",
     off_label: "OFF",
     settings_vibration: "Vibração",
@@ -224,6 +241,11 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     game_turn_you: "Sua vez!",
     game_bot_thinking: "IA a pensar...",
     stage_label: "Fase {id}",
+    stage_header: "Fase {id} - Dificuldade {diff}",
+    stage_intro_title: "Bem-vindo à dificuldade {diff}",
+    stage_intro_copy: "A fase {id} começou. Boa sorte!",
+    stage_intro_start: "Começar",
+    stage_intro_map: "Voltar ao mapa",
     vs_bot_label: "vs IA — {diff}",
     teams_2v2: "Duplas 2v2",
     n_players: "{n} Jogadores",
@@ -269,8 +291,16 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     god_go: "IR",
     god_next: "⏭ Próxima fase ({id})",
     god_refill: "⚡ Recarregar energia",
+    god_phase_tools: "Teste da fase",
+    god_complete_win: "Completar como vitória",
+    god_complete_loss: "Completar como derrota",
+    god_energy_tools: "Teste de energia",
+    god_zero_energy: "Zerar energia",
     god_activated: "👑 God Mode ATIVADO!",
     god_deactivated: "God Mode desativado",
+    god_energy_zeroed: "Energia zerada",
+    god_forced_win: "Fase concluída como vitória",
+    god_forced_loss: "Fase concluída como derrota",
     on_label: "ON",
     off_label: "OFF",
     settings_vibration: "Vibração",
@@ -348,6 +378,11 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     game_turn_you: "¡Tu turno!",
     game_bot_thinking: "IA pensando...",
     stage_label: "Fase {id}",
+    stage_header: "Fase {id} - Dificultad {diff}",
+    stage_intro_title: "Bienvenido a la dificultad {diff}",
+    stage_intro_copy: "La fase {id} empieza ahora. ¡Buena suerte!",
+    stage_intro_start: "Empezar",
+    stage_intro_map: "Volver al mapa",
     vs_bot_label: "vs IA — {diff}",
     teams_2v2: "Parejas 2v2",
     n_players: "{n} Jugadores",
@@ -393,8 +428,16 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     god_go: "IR",
     god_next: "⏭ Siguiente fase ({id})",
     god_refill: "⚡ Recargar energía",
+    god_phase_tools: "Pruebas de fase",
+    god_complete_win: "Completar como victoria",
+    god_complete_loss: "Completar como derrota",
+    god_energy_tools: "Pruebas de energía",
+    god_zero_energy: "Poner energía a cero",
     god_activated: "👑 ¡Modo Dios ACTIVADO!",
     god_deactivated: "Modo Dios desactivado",
+    god_energy_zeroed: "Energía en cero",
+    god_forced_win: "Fase completada como victoria",
+    god_forced_loss: "Fase completada como derrota",
     on_label: "ON",
     off_label: "OFF",
     settings_vibration: "Vibración",
@@ -472,6 +515,11 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     game_turn_you: "Your turn!",
     game_bot_thinking: "AI thinking...",
     stage_label: "Stage {id}",
+    stage_header: "Stage {id} - Difficulty {diff}",
+    stage_intro_title: "Welcome to difficulty {diff}",
+    stage_intro_copy: "Stage {id} starts now. Good luck!",
+    stage_intro_start: "Start",
+    stage_intro_map: "Back to map",
     vs_bot_label: "vs AI — {diff}",
     teams_2v2: "Teams 2v2",
     n_players: "{n} Players",
@@ -517,8 +565,16 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     god_go: "GO",
     god_next: "⏭ Next stage ({id})",
     god_refill: "⚡ Refill energy",
+    god_phase_tools: "Stage tools",
+    god_complete_win: "Complete as win",
+    god_complete_loss: "Complete as loss",
+    god_energy_tools: "Energy tools",
+    god_zero_energy: "Zero energy",
     god_activated: "👑 God Mode ACTIVATED!",
     god_deactivated: "God Mode deactivated",
+    god_energy_zeroed: "Energy set to zero",
+    god_forced_win: "Stage completed as a win",
+    god_forced_loss: "Stage completed as a loss",
     on_label: "ON",
     off_label: "OFF",
     settings_vibration: "Vibration",

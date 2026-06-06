@@ -1,5 +1,5 @@
 import { GameState } from "../state/game-state";
-import { createBoard } from "../services/board";
+import { createBoard, createBoardFromCells, SparseBoardConfig } from "../services/board";
 import { createPlayer } from "../models/player";
 import { applyMove } from "../services/move";
 import { Line } from "../models/line";
@@ -10,10 +10,19 @@ export interface PlayerConfig {
   color: string;
 }
 
-export interface GameConfig {
+interface SquareGameConfig {
   gridSize: number;
+  board?: never;
   players: [PlayerConfig, PlayerConfig, ...PlayerConfig[]];
 }
+
+interface SparseGameConfig {
+  board: SparseBoardConfig;
+  gridSize?: never;
+  players: [PlayerConfig, PlayerConfig, ...PlayerConfig[]];
+}
+
+export type GameConfig = SquareGameConfig | SparseGameConfig;
 
 export class GameController {
   private state: GameState;
@@ -26,7 +35,9 @@ export class GameController {
     const players = config.players.map((p, i) =>
       createPlayer(`p${i + 1}`, p.name, p.color),
     );
-    return createBoard(config.gridSize, players);
+    return "board" in config
+      ? createBoardFromCells(config.board, players)
+      : createBoard(config.gridSize, players);
   }
 
   getState(): GameState {

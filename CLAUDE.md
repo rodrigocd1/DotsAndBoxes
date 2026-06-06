@@ -90,6 +90,7 @@ npm run build      # Build de produção em dist/
 
 Ao iniciar conversa nova, leia uma única vez:
 - `CLAUDE.md`
+- `RUNBOOK.md` (execucao local rapida; use primeiro quando a tarefa for subir o app)
 - `GAME_CONTEXT.md`
 - `GAME-DESIGN.md` (apenas se a tarefa envolver game design ou novos modos)
 - `README.md` (apenas se precisar de setup/arquitetura)

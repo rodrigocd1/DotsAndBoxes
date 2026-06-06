@@ -1,10 +1,10 @@
 import { GameController, GameConfig } from "./controller";
 import { render, canvasSize, findLineAtPoint, TOUCH_HIT } from "./renderer";
 import { chooseBotMove, botThinkDelay, BotDifficulty, BOT_DIFFICULTIES, getDiffLabel } from "./bot";
-import { getStage, INITIAL_STAGES } from "./arcade-stages";
+import { calculateStars, getDifficultyLabel, getStage, getStageTitle, INITIAL_STAGES, isDifficultyIntroStage } from "./arcade-stages";
 import {
   loadProfile, recordStageResult, rankLabel,
-  loadEnergy, spendEnergy, refillEnergy, MAX_ENERGY, msToNextEnergy,
+  loadEnergy, spendEnergy, refillEnergy, saveEnergy, MAX_ENERGY, msToNextEnergy,
   addEnergy,
   loadGodMode, saveGodMode, GodModeConfig,
   loadTheme, saveTheme, applyTheme, Theme,
@@ -61,7 +61,7 @@ const ICO_RESTART     = tablerSvg(THEME_ICON_SIZE,   `<path d="M20 11a8 8 0 1 0 
 //   Formato: v{major}.{minor}.{patch}
 //   Exemplos: v0.1.98 → v0.1.99 → v0.2.0 → v0.2.1
 //   NUNCA alterar major sem decisão explícita do responsável pelo projeto.
-const VERSION = "v0.01.45";
+const VERSION = "v0.01.51";
 
 // ── Estado global ─────────────────────────────────────────────────────────
 interface GameSession {
@@ -75,6 +75,7 @@ interface GameSession {
   botThinking: boolean;
   freeRetry: boolean;
   maxChain?: number; // max caixas fechadas pelo humano em um único turno (arcade)
+  finishShown: boolean;
 }
 
 let session: GameSession | null = null;
@@ -100,6 +101,59 @@ function themeLabel(theme: Theme): string {
   if (theme === "light") return t("theme_light");
   const pink = t("theme_pink");
   return pink === "theme_pink" ? "🌸 Rosa" : pink;
+}
+
+function forceArcadeWin(stageId: number): void {
+  const current = session;
+  const stage = getStage(stageId);
+  const state = current?.controller.getState();
+  if (!current || current.mode !== "arcade" || current.stageId !== stageId || !state) return;
+
+  const nextId = stageId < INITIAL_STAGES ? stageId + 1 : null;
+  const stars: 0 | 1 | 2 | 3 = 1;
+  recordStageResult(stageId, stars, stage.totalMaxScore * 100, 100);
+  session = null;
+  hoverLine = null;
+  showCelebration(
+    stars,
+    100,
+    getStageTitle(stage),
+    nextId,
+    () => { if (nextId) startArcadeStage(nextId, true); else showArcadeMap(); },
+    () => { showArcadeMap(); },
+  );
+}
+
+function forceArcadeLoss(stageId: number): void {
+  const current = session;
+  if (!current || current.mode !== "arcade" || current.stageId !== stageId) return;
+
+  session = null;
+  hoverLine = null;
+  const retryFn = () => { session = null; hoverLine = null; startArcadeStage(stageId, true, true); };
+  const mapFn = () => { session = null; hoverLine = null; showArcadeMap(); };
+  showFailBanner(retryFn, mapFn);
+}
+
+function showDifficultyIntro(stageId: number, onStart: () => void, onBack: () => void): void {
+  const stage = getStage(stageId);
+  const ov = document.createElement("div");
+  ov.className = "modal-overlay";
+  ov.innerHTML = `
+    <div class="modal-card stage-intro-card">
+      <div class="stage-intro-kicker">${sectionTitle(ICO_STAR, getStageTitle(stage))}</div>
+      <div class="stage-intro-title">${t("stage_intro_title", { diff: getDifficultyLabel(stage.baseDifficulty) })}</div>
+      <div class="stage-intro-copy">${t("stage_intro_copy", { id: stage.id })}</div>
+      <div class="stage-intro-actions">
+        <button class="btn-cel-next" id="si-start">${t("stage_intro_start")}</button>
+        <button class="btn-cel-map" id="si-map">${t("stage_intro_map")}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const dismiss = () => ov.remove();
+  ov.querySelector("#si-start")?.addEventListener("click", () => { dismiss(); onStart(); });
+  ov.querySelector("#si-map")?.addEventListener("click", () => { dismiss(); onBack(); });
+  ov.addEventListener("click", (e) => { if (e.target === ov) { dismiss(); onBack(); } });
 }
 
 const bgMusic = new Audio("./bg_music.mp3");
@@ -439,14 +493,14 @@ function showEnergyAdPrompt(onWatchAd: ()=>Promise<RewardedAdOutcome>) {
   });
 }
 
-async function watchArcadeEnergyReward(stageId: number): Promise<RewardedAdOutcome> {
+async function watchArcadeEnergyReward(stageId: number, godSkip = false, skipIntro = false): Promise<RewardedAdOutcome> {
   const result = await showRewardedEnergyAd();
 
   if (result.status === REWARDED_AD_STATUS.Rewarded) {
     addEnergy(ENERGY_REWARD_AMOUNT);
     refreshEnergyDisplay();
     showToast(t("energy_reward_5", { n: ENERGY_REWARD_AMOUNT }));
-    startArcadeStage(stageId);
+    startArcadeStage(stageId, godSkip, skipIntro);
     return result;
   }
 
@@ -592,11 +646,21 @@ function showGodModeModal(currentStageId?: number) {
       <div class="settings-section">
         <label class="settings-label">${t("god_go_stage")}</label>
         <div class="god-input-row">
-          <input class="god-input" id="gs" type="number" min="1" max="500" placeholder="1-500" value="${currentStageId??1}" />
+          <input class="god-input" id="gs" type="number" min="1" max="${INITIAL_STAGES}" placeholder="1-${INITIAL_STAGES}" value="${currentStageId??1}" />
           <button class="god-go" id="gg">${t("god_go")}</button>
         </div>
       </div>
-      ${currentStageId?`<button class="god-skip" id="gsk">${t("god_next",{id:currentStageId+1})}</button>`:""}
+      ${currentStageId != null ? `
+      <div class="settings-section">
+        <label class="settings-label">${t("god_phase_tools")}</label>
+        <button class="god-go" id="gw">${t("god_complete_win")}</button>
+        <button class="god-skip" id="gl">${t("god_complete_loss")}</button>
+      </div>` : ""}
+      <div class="settings-section">
+        <label class="settings-label">${t("god_energy_tools")}</label>
+        <button class="god-refill" id="gz">${t("god_zero_energy")}</button>
+      </div>
+      ${currentStageId != null && currentStageId < INITIAL_STAGES ? `<button class="god-skip" id="gsk">${t("god_next",{id:currentStageId+1})}</button>` : ""}
       <button class="god-refill" id="gr">${t("god_refill")}</button>
     </div>`;
   document.body.appendChild(ov);
@@ -609,13 +673,24 @@ function showGodModeModal(currentStageId?: number) {
     tb.classList.toggle("on", godMode.unlimitedEnergy); refreshEnergyDisplay();
   });
   ov.querySelector("#gr")?.addEventListener("click", () => { refillEnergy(); refreshEnergyDisplay(); showToast(t("energy_recharged")); });
+  ov.querySelector("#gz")?.addEventListener("click", () => {
+    godMode.unlimitedEnergy = false;
+    saveGodMode(godMode);
+    saveEnergy(0);
+    refreshEnergyDisplay();
+    tb.textContent = t("off_label");
+    tb.classList.remove("on");
+    showToast(t("god_energy_zeroed"));
+  });
   ov.querySelector("#gsr")?.addEventListener("click", () => { setSkipCount(SKIPS_PER_WEEK); ov.querySelector<HTMLElement>("#skip-count-label")!.textContent = `${SKIPS_PER_WEEK}/${SKIPS_PER_WEEK}`; showToast(`${SKIPS_PER_WEEK} pulos restaurados`); });
   ov.querySelector("#gg")?.addEventListener("click", () => {
     const v = parseInt((ov.querySelector<HTMLInputElement>("#gs")!).value, 10);
-    if (v >= 1 && v <= 500) { ov.remove(); session = null; hoverLine = null; startArcadeStage(v, true); }
+    if (v >= 1 && v <= INITIAL_STAGES) { ov.remove(); session = null; hoverLine = null; startArcadeStage(v, true); }
   });
+  ov.querySelector("#gw")?.addEventListener("click", () => { ov.remove(); forceArcadeWin(currentStageId!); });
+  ov.querySelector("#gl")?.addEventListener("click", () => { ov.remove(); forceArcadeLoss(currentStageId!); });
   ov.querySelector("#gsk")?.addEventListener("click", () => {
-    if (!currentStageId) return;
+    if (!currentStageId || currentStageId >= INITIAL_STAGES) return;
     ov.remove(); session = null; hoverLine = null; startArcadeStage(currentStageId + 1, true);
   });
 }
@@ -739,7 +814,11 @@ function showMenu() {
   stopEnergyTimer(); session = null; hoverLine = null;
   const profile = loadProfile();
   const rank = rankLabel(profile.xp);
-  const done = Object.values(profile.stageProgress).filter((s) => s.stars > 0).length;
+  const done = Object.entries(profile.stageProgress).filter(([stageId, progress]) =>
+    Number(stageId) >= 1 &&
+    Number(stageId) <= INITIAL_STAGES &&
+    progress.stars > 0,
+  ).length;
   const isNew = done === 0;
 
   app.innerHTML = `
@@ -770,7 +849,7 @@ function showMenu() {
             <span class="rank-name">${rank.rank}</span>
             <span class="rank-xp">${profile.xp.toLocaleString()} XP</span>
           </div>
-          ${godMode.unlimitedEnergy ? `<button class="btn-god-ring" id="btn-god-menu">👑</button>` : ""}
+          <button class="btn-god-ring" id="btn-god-menu" title="${t("god_mode")}" aria-label="${t("god_mode")}">👑</button>
         </div>
 
         <div class="menu-buttons">
@@ -1015,17 +1094,21 @@ function showTutorial() {
 }
 
 // ── STARTERS ──────────────────────────────────────────────────────────────
-function startArcadeStage(stageId: number, godSkip = false) {
+function startArcadeStage(stageId: number, godSkip = false, skipIntro = false) {
+  if (!skipIntro && isDifficultyIntroStage(stageId)) {
+    showDifficultyIntro(stageId, () => startArcadeStage(stageId, godSkip, true), showArcadeMap);
+    return;
+  }
   if (!godSkip && !godMode.unlimitedEnergy && !spendEnergy()) {
-    showEnergyAdPrompt(() => watchArcadeEnergyReward(stageId));
+    showEnergyAdPrompt(() => watchArcadeEnergyReward(stageId, godSkip, skipIntro));
     return;
   }
   const stage = getStage(stageId);
   const palette = getThemePlayerColors();
   session = {
     mode: "arcade", stageId, botDifficulty: stage.difficulty,
-    controller: new GameController({ gridSize: stage.gridSize, players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }] }),
-    botPlayerId: "p2", botThinking: false, freeRetry: false, maxChain: 0,
+    controller: new GameController({ board: stage.board, players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }] }),
+    botPlayerId: "p2", botThinking: false, freeRetry: false, maxChain: 0, finishShown: false,
   };
   showGame();
 }
@@ -1034,7 +1117,7 @@ function startBotGame(difficulty: BotDifficulty, gridSize: number) {
   session = {
     mode: "vs-bot", botDifficulty: difficulty,
     controller: new GameController({ gridSize, players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }] }),
-    botPlayerId: "p2", botThinking: false, freeRetry: false,
+    botPlayerId: "p2", botThinking: false, freeRetry: false, finishShown: false,
   };
   showGame();
 }
@@ -1042,7 +1125,7 @@ function startMultiGame(playerCount: number, teamMode: boolean, gridSize: number
   const names = playerNames();
   const palette = getThemePlayerColors();
   const players = Array.from({ length: playerCount }, (_, i) => ({ name: names[i]!, color: palette[i % palette.length] })) as GameConfig["players"];
-  session = { mode: "multi", teamMode, playerCount, controller: new GameController({ gridSize, players }), botThinking: false, freeRetry: false };
+  session = { mode: "multi", teamMode, playerCount, controller: new GameController({ gridSize, players }), botThinking: false, freeRetry: false, finishShown: false };
   showGame();
 }
 
@@ -1051,7 +1134,7 @@ function showGame() {
   if (!session) return;
   const s = session; stopEnergyTimer();
   const modeTitle = s.mode === "arcade"
-    ? sectionTitle(ICO_STAR, t("stage_label", { id: s.stageId! }))
+    ? sectionTitle(ICO_STAR, getStageTitle(getStage(s.stageId!)))
     : s.mode === "vs-bot"
     ? sectionTitle(ICO_BARBELL, `${t("menu_bot")} · ${getDiffLabel(s.botDifficulty!)}`)
     : sectionTitle(ICO_USERS, s.teamMode ? t("teams_2v2") : t("n_players", { n: s.playerCount! }));
@@ -1064,7 +1147,7 @@ function showGame() {
           <h2>${modeTitle}</h2>
           <div class="game-header-actions">
             ${s.mode === "vs-bot" ? `<button class="btn-restart-corner" id="btn-restart-game" title="${t("restart")}" aria-label="${t("restart")}">${ICO_RESTART}</button>` : `<span class="header-end-spacer"></span>`}
-            ${godMode.unlimitedEnergy ? `<button class="btn-god-corner" id="btn-god-game" title="${t("god_mode")}" aria-label="${t("god_mode")}">👑</button>` : ""}
+            <button class="btn-god-corner" id="btn-god-game" title="${t("god_mode")}" aria-label="${t("god_mode")}">👑</button>
           </div>
         </div>
         <div id="scoreboard" class="scoreboard"></div>
@@ -1091,7 +1174,7 @@ function showGame() {
 
   function draw() {
     const st = s.controller.getState();
-    const { width, height } = canvasSize(st.gridSize);
+    const { width, height } = canvasSize(st.gridRows, st.gridCols);
     const ratio = window.devicePixelRatio || 1;
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(height * ratio);
@@ -1132,6 +1215,8 @@ function showGame() {
   }
 
   function onGameFinished() {
+    if (s.finishShown) return;
+    s.finishShown = true;
     const st = s.controller.getState();
     const maxScore = Math.max(...st.players.map((p)=>p.score));
     if (s.mode === "arcade" && s.stageId != null) {
@@ -1141,32 +1226,17 @@ function showGame() {
       const won  = you.score > bot.score;
       const tied = you.score === bot.score;
       if (won) {
-        const totalBoxes = (stage.gridSize - 1) ** 2;
-        let stars: 0|1|2|3 = 1; let xp = 100;
-        if (stage.objectiveType === "win") {
-          if (you.score >= Math.ceil(totalBoxes * 0.65))      { stars = 3; xp += 100; }
-          else if (you.score >= Math.ceil(totalBoxes * 0.5))  { stars = 2; xp += 50; }
-        } else if (stage.objectiveType === "margin") {
-          if ((you.score - bot.score) >= stage.objectiveValue + 2)  { stars = 3; xp += 100; }
-          else if ((you.score - bot.score) >= stage.objectiveValue)  { stars = 2; xp += 50; }
-        } else if (stage.objectiveType === "dominance") {
-          if (you.score / totalBoxes >= 0.75)                              { stars = 3; xp += 100; }
-          else if (you.score / totalBoxes >= stage.objectiveValue / 100)   { stars = 2; xp += 50; }
-        } else if (stage.objectiveType === "clean") {
-          if (bot.score === 0 && (you.score - bot.score) >= 3) { stars = 3; xp += 100; }
-          else if (bot.score === 0)                             { stars = 2; xp += 50; }
-        } else if (stage.objectiveType === "chain") {
-          const chain = s.maxChain ?? 0;
-          if (chain >= 3)      { stars = 3; xp += 100; }
-          else if (chain >= 2) { stars = 2; xp += 50; }
-        }
+        const stars = calculateStars(you.score, bot.score, stage.totalMaxScore, stage.effectiveDifficulty);
+        let xp = 100;
+        if (stars >= 2) xp += 50;
+        if (stars >= 3) xp += 50;
         recordStageResult(s.stageId, stars, you.score*100, xp);
         const nextId = s.stageId < INITIAL_STAGES ? s.stageId+1 : null;
-        showCelebration(stars, xp, t("stage_label",{id:s.stageId}), nextId,
+        showCelebration(stars, xp, getStageTitle(stage), nextId,
           () => { if (nextId) startArcadeStage(nextId); else showArcadeMap(); },
           () => { session=null; hoverLine=null; showArcadeMap(); });
       } else {
-        const retryFn = () => { session=null; hoverLine=null; startArcadeStage(s.stageId!); };
+        const retryFn = () => { session=null; hoverLine=null; startArcadeStage(s.stageId!, false, true); };
         const mapFn  = () => { session=null; hoverLine=null; showArcadeMap(); };
         const nextId = s.stageId! < INITIAL_STAGES ? s.stageId! + 1 : null;
         const skipInfo: SkipInfo | undefined = (!tied && nextId != null) ? {
@@ -1180,7 +1250,7 @@ function showGame() {
       const bot2 = st.players.find((p)=>p.id===s.botPlayerId)!;
       const isTie = you.score === bot2.score;
       if (isTie) showFailBanner(()=>startBotGame(s.botDifficulty!,st.gridSize),showMenu, true);
-      else if (you.score === maxScore) showCelebration(1,60,t("victory"),null,()=>startBotGame(s.botDifficulty!,st.gridSize),showMenu);
+      else if (you.score === maxScore) showCelebration(1,60,"",null,()=>startBotGame(s.botDifficulty!,st.gridSize),showMenu,t("victory"));
       else showFailBanner(()=>startBotGame(s.botDifficulty!,st.gridSize),showMenu);
     } else {
       const winners = st.players.filter((p)=>p.score===maxScore);
@@ -2231,6 +2301,41 @@ html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
 .god-refill:hover { background: rgba(243,156,18,.2); }
 
 /* ── CELEBRAÇÃO ──────────────────────────────────────────────── */
+.stage-intro-card {
+  width: min(420px, calc(100vw - 32px));
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--ui-accent-soft) 55%, transparent) 0%, transparent 56%),
+    var(--bg-2);
+}
+.stage-intro-kicker {
+  display: flex;
+  justify-content: center;
+}
+.stage-intro-title {
+  font-size: 1.22rem;
+  font-weight: 900;
+  color: var(--text);
+  line-height: 1.15;
+}
+.stage-intro-copy {
+  font-size: .92rem;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.stage-intro-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+.stage-intro-actions .btn-cel-next,
+.stage-intro-actions .btn-cel-map {
+  min-width: 145px;
+}
 .cel-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.88); display: flex; align-items: center; justify-content: center; z-index: 500; animation: fadeIn .3s; }
 .cel-card { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; padding: 16px; }
 .cel-label { font-size: .95rem; color: var(--text-2); font-weight: 600; animation: fadeInUp .5s .1s both; }

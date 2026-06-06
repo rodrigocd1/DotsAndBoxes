@@ -11,6 +11,8 @@ export type GameStatus = "playing" | "finished";
  */
 export interface GameState {
   readonly gridSize: number;
+  readonly gridRows: number;
+  readonly gridCols: number;
   readonly players: readonly Player[];
   readonly lines: Readonly<Record<string, Line>>;
   readonly boxes: Readonly<Record<string, Box>>;

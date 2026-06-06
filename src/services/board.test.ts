@@ -1,4 +1,4 @@
-import { createBoard, MIN_GRID_SIZE } from "./board";
+import { createBoard, createBoardFromCells, MIN_GRID_SIZE } from "./board";
 import { getScores } from "./scoring";
 import { createPlayer } from "../models/player";
 
@@ -30,5 +30,38 @@ describe("createBoard", () => {
   it("rejeita grid menor que o mínimo e menos de 2 jogadores", () => {
     expect(() => createBoard(MIN_GRID_SIZE - 1, [p1, p2])).toThrow(RangeError);
     expect(() => createBoard(3, [p1])).toThrow(RangeError);
+  });
+
+  it("cria tabuleiro esparso compartilhando bordas entre células adjacentes", () => {
+    const state = createBoardFromCells(
+      {
+        width: 4,
+        height: 3,
+        cells: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 1, y: 1 },
+        ],
+      },
+      [p1, p2],
+    );
+    expect(state.gridCols).toBe(5);
+    expect(state.gridRows).toBe(4);
+    expect(state.gridSize).toBe(5);
+    expect(Object.keys(state.boxes)).toHaveLength(3);
+    expect(Object.keys(state.lines)).toHaveLength(10);
+  });
+
+  it("rejeita célula fora do limite do tabuleiro esparso", () => {
+    expect(() =>
+      createBoardFromCells(
+        {
+          width: 2,
+          height: 2,
+          cells: [{ x: 2, y: 0 }],
+        },
+        [p1, p2],
+      ),
+    ).toThrow(RangeError);
   });
 });

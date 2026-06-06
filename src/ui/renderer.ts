@@ -1,6 +1,6 @@
+import { Dot, dotKey } from "../models/dot";
 import { GameState } from "../state/game-state";
-import { Line, lineKey, makeLine } from "../models/line";
-import { dot } from "../models/dot";
+import { Line, lineKey } from "../models/line";
 
 const CELL = 80;
 const PAD = 50;
@@ -60,9 +60,10 @@ function strokeSegment(
   ctx.stroke();
 }
 
-export function canvasSize(gridSize: number): { width: number; height: number } {
-  const size = PAD * 2 + (gridSize - 1) * CELL;
-  return { width: size, height: size };
+export function canvasSize(gridRows: number, gridCols = gridRows): { width: number; height: number } {
+  const width = PAD * 2 + (gridCols - 1) * CELL;
+  const height = PAD * 2 + (gridRows - 1) * CELL;
+  return { width, height };
 }
 
 export function render(
@@ -71,15 +72,13 @@ export function render(
   hoverLine: Line | null,
   _teamMode = false,
 ): void {
-  const { gridSize } = state;
-  const { width, height } = canvasSize(gridSize);
+  const { width, height } = canvasSize(state.gridRows, state.gridCols);
   const palette = boardPalette();
 
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = palette.bg;
   ctx.fillRect(0, 0, width, height);
 
-  // Boxes preenchidas
   for (const box of Object.values(state.boxes)) {
     if (!box.ownerId) continue;
     const color = playerColor(state, box.ownerId);
@@ -103,7 +102,6 @@ export function render(
     }
   }
 
-  // Linhas
   const currentPlayer = state.players.find(
     (p) => p.id === state.currentPlayerId,
   );
@@ -124,14 +122,11 @@ export function render(
     }
   }
 
-  // Pontos
-  for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize; c++) {
-      ctx.beginPath();
-      ctx.arc(dotX(c), dotY(r), DOT_R, 0, Math.PI * 2);
-      ctx.fillStyle = palette.dot;
-      ctx.fill();
-    }
+  for (const point of collectDots(state)) {
+    ctx.beginPath();
+    ctx.arc(dotX(point.col), dotY(point.row), DOT_R, 0, Math.PI * 2);
+    ctx.fillStyle = palette.dot;
+    ctx.fill();
   }
 }
 
@@ -141,44 +136,45 @@ export function findLineAtPoint(
   y: number,
   hitRadius = HIT,
 ): Line | null {
-  const { gridSize } = state;
   let closest: Line | null = null;
   let minDist = hitRadius;
   const alongPadding = Math.max(4, Math.round(hitRadius * 0.4));
 
-  // Linhas horizontais
-  for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize - 1; c++) {
-      const lx1 = dotX(c);
-      const lx2 = dotX(c + 1);
-      const ly = dotY(r);
-      if (x >= lx1 - alongPadding && x <= lx2 + alongPadding) {
-        const dist = Math.abs(y - ly);
+  for (const line of Object.values(state.lines)) {
+    const x1 = dotX(line.from.col);
+    const y1 = dotY(line.from.row);
+    const x2 = dotX(line.to.col);
+    const y2 = dotY(line.to.row);
+    const horizontal = line.from.row === line.to.row;
+
+    if (horizontal) {
+      if (x >= x1 - alongPadding && x <= x2 + alongPadding) {
+        const dist = Math.abs(y - y1);
         if (dist < minDist) {
           minDist = dist;
-          const key = lineKey(makeLine(dot(r, c), dot(r, c + 1)));
-          closest = state.lines[key] ?? null;
+          closest = line;
         }
       }
+      continue;
     }
-  }
 
-  // Linhas verticais
-  for (let r = 0; r < gridSize - 1; r++) {
-    for (let c = 0; c < gridSize; c++) {
-      const ly1 = dotY(r);
-      const ly2 = dotY(r + 1);
-      const lx = dotX(c);
-      if (y >= ly1 - alongPadding && y <= ly2 + alongPadding) {
-        const dist = Math.abs(x - lx);
-        if (dist < minDist) {
-          minDist = dist;
-          const key = lineKey(makeLine(dot(r, c), dot(r + 1, c)));
-          closest = state.lines[key] ?? null;
-        }
+    if (y >= y1 - alongPadding && y <= y2 + alongPadding) {
+      const dist = Math.abs(x - x1);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = line;
       }
     }
   }
 
   return closest;
+}
+
+function collectDots(state: GameState): Dot[] {
+  const unique = new Map<string, Dot>();
+  for (const line of Object.values(state.lines)) {
+    unique.set(dotKey(line.from), line.from);
+    unique.set(dotKey(line.to), line.to);
+  }
+  return [...unique.values()];
 }

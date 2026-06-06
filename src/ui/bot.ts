@@ -1,8 +1,8 @@
 import { GameState } from "../state/game-state";
-import { Line, lineKey } from "../models/line";
+import { Line } from "../models/line";
 import { applyMove } from "../services/move";
 import { getAvailableLines } from "../queries/lines";
-import { boxEdgeKeys } from "../models/box";
+import { boxEdgeKeys, boxKeyFromTopLeft } from "../models/box";
 import { dot } from "../models/dot";
 import { t } from "./i18n";
 
@@ -16,20 +16,19 @@ export type BotDifficulty =
   | "impulsivo";
 
 const DIFF_I18N_KEYS: Record<BotDifficulty, string> = {
-  "muito-facil":  "diff_muito_facil",
-  facil:          "diff_facil",
-  medio:          "diff_medio",
-  dificil:        "diff_dificil",
-  "muito-dificil":"diff_muito_dificil",
-  impossivel:     "diff_impossivel",
-  impulsivo:      "diff_impulsivo",
+  "muito-facil": "diff_muito_facil",
+  facil: "diff_facil",
+  medio: "diff_medio",
+  dificil: "diff_dificil",
+  "muito-dificil": "diff_muito_dificil",
+  impossivel: "diff_impossivel",
+  impulsivo: "diff_impulsivo",
 };
 
 export function getDiffLabel(diff: BotDifficulty): string {
   return t(DIFF_I18N_KEYS[diff]);
 }
 
-/** Lista ordenada de dificuldades para os menus */
 export const BOT_DIFFICULTIES: BotDifficulty[] = [
   "muito-facil", "facil", "medio", "dificil", "muito-dificil", "impossivel", "impulsivo",
 ];
@@ -38,50 +37,40 @@ function randomLine(lines: readonly Line[]): Line {
   return lines[Math.floor(Math.random() * lines.length)] as Line;
 }
 
-/** Conta quantos lados de uma caixa já estão tomados */
 function sidesCount(state: GameState, topLeftRow: number, topLeftCol: number): number {
   const keys = boxEdgeKeys(dot(topLeftRow, topLeftCol));
   return keys.filter((k) => state.lines[k]?.ownerId !== null).length;
 }
 
-/** Linhas que fecham ao menos 1 caixa imediatamente (3 lados já tomados) */
 function winningMoves(state: GameState, lines: readonly Line[]): Line[] {
-  return lines.filter((line) => {
-    const { gridSize } = state;
-    // Verifica as caixas adjacentes à linha
-    const adjacent = adjacentBoxes(line, gridSize);
-    return adjacent.some(([r, c]) => sidesCount(state, r, c) === 3);
-  });
+  return lines.filter((line) =>
+    adjacentBoxes(state, line).some(([r, c]) => sidesCount(state, r, c) === 3),
+  );
 }
 
-/** Linhas que NÃO entregam caixa ao adversário (nenhuma caixa adjacente com 2 lados) */
 function safeMoves(state: GameState, lines: readonly Line[]): Line[] {
-  return lines.filter((line) => {
-    const { gridSize } = state;
-    const adjacent = adjacentBoxes(line, gridSize);
-    return !adjacent.some(([r, c]) => sidesCount(state, r, c) === 2);
-  });
+  return lines.filter((line) =>
+    !adjacentBoxes(state, line).some(([r, c]) => sidesCount(state, r, c) === 2),
+  );
 }
 
-function adjacentBoxes(line: Line, gridSize: number): [number, number][] {
-  const boxes: [number, number][] = [];
+function adjacentBoxes(state: GameState, line: Line): [number, number][] {
+  const candidates: [number, number][] = [];
   const { from, to } = line;
-  const isH = from.row === to.row;
-  if (isH) {
-    const r = from.row;
-    const c = from.col;
-    if (r > 0) boxes.push([r - 1, c]);
-    if (r < gridSize - 1) boxes.push([r, c]);
-  } else {
-    const r = from.row;
-    const c = from.col;
-    if (c > 0) boxes.push([r, c - 1]);
-    if (c < gridSize - 1) boxes.push([r, c]);
-  }
-  return boxes;
-}
+  const isHorizontal = from.row === to.row;
 
-// ── Minimax ────────────────────────────────────────────────────────────────
+  if (isHorizontal) {
+    candidates.push([from.row - 1, from.col], [from.row, from.col]);
+  } else {
+    candidates.push([from.row, from.col - 1], [from.row, from.col]);
+  }
+
+  return candidates.filter(([r, c]) =>
+    r >= 0 &&
+    c >= 0 &&
+    state.boxes[boxKeyFromTopLeft(dot(r, c))] !== undefined,
+  );
+}
 
 function evaluate(state: GameState, botId: string): number {
   const bot = state.players.find((p) => p.id === botId);
@@ -104,18 +93,9 @@ function minimax(
   const lines = getAvailableLines(state);
   if (lines.length === 0) return evaluate(state, botId);
 
-  // Ordena: jogadas vencedoras primeiro (melhora poda)
   const sorted = [...lines].sort((a, b) => {
-    const aWins = adjacentBoxes(a, state.gridSize).some(
-      ([r, c]) => sidesCount(state, r, c) === 3,
-    )
-      ? 1
-      : 0;
-    const bWins = adjacentBoxes(b, state.gridSize).some(
-      ([r, c]) => sidesCount(state, r, c) === 3,
-    )
-      ? 1
-      : 0;
+    const aWins = adjacentBoxes(state, a).some(([r, c]) => sidesCount(state, r, c) === 3) ? 1 : 0;
+    const bWins = adjacentBoxes(state, b).some(([r, c]) => sidesCount(state, r, c) === 3) ? 1 : 0;
     return bWins - aWins;
   });
 
@@ -131,19 +111,19 @@ function minimax(
       if (beta <= alpha) break;
     }
     return best;
-  } else {
-    let best = Infinity;
-    for (const line of sorted) {
-      const result = applyMove(state, line);
-      if (!result.ok) continue;
-      const nextMaximizing = result.value.currentPlayerId === botId;
-      const val = minimax(result.value, botId, depth - 1, alpha, beta, nextMaximizing);
-      best = Math.min(best, val);
-      beta = Math.min(beta, val);
-      if (beta <= alpha) break;
-    }
-    return best;
   }
+
+  let best = Infinity;
+  for (const line of sorted) {
+    const result = applyMove(state, line);
+    if (!result.ok) continue;
+    const nextMaximizing = result.value.currentPlayerId === botId;
+    const val = minimax(result.value, botId, depth - 1, alpha, beta, nextMaximizing);
+    best = Math.min(best, val);
+    beta = Math.min(beta, val);
+    if (beta <= alpha) break;
+  }
+  return best;
 }
 
 function bestMinimaxMove(state: GameState, botId: string, depth: number): Line {
@@ -164,11 +144,9 @@ function bestMinimaxMove(state: GameState, botId: string, depth: number): Line {
   return bestLine;
 }
 
-// ── Ponto de entrada público ────────────────────────────────────────────────
-
 export function chooseBotMove(state: GameState, difficulty: BotDifficulty): Line {
   const available = getAvailableLines(state);
-  if (available.length === 0) throw new Error("Sem movimentos disponíveis");
+  if (available.length === 0) throw new Error("Sem movimentos disponiveis");
 
   const botId = state.currentPlayerId;
 
@@ -196,7 +174,7 @@ export function chooseBotMove(state: GameState, difficulty: BotDifficulty): Line
       return bestMinimaxMove(state, botId, 6);
 
     case "impossivel": {
-      const depth = state.gridSize <= 4 ? 12 : 8;
+      const depth = Object.keys(state.boxes).length <= 9 ? 12 : 8;
       return bestMinimaxMove(state, botId, depth);
     }
 
@@ -207,7 +185,6 @@ export function chooseBotMove(state: GameState, difficulty: BotDifficulty): Line
   }
 }
 
-/** Retorna o delay em ms antes do bot jogar (simula "pensar") */
 export function botThinkDelay(difficulty: BotDifficulty): number {
   const delays: Record<BotDifficulty, number> = {
     "muito-facil": 300,
