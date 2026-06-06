@@ -14,6 +14,21 @@ function dotY(row: number): number {
   return PAD + row * CELL;
 }
 
+function cssVar(name: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+function boardPalette() {
+  return {
+    bg: cssVar("--bg-2", "#ffffff"),
+    emptyLine: cssVar("--border-strong", "#d1d5db"),
+    hoverLine: cssVar("--ui-accent", "#64748b"),
+    dot: cssVar("--ui-accent-border", "#334155"),
+  };
+}
+
 function playerColor(state: GameState, ownerId: string | null): string {
   if (!ownerId) return "#ccc";
   return state.players.find((p) => p.id === ownerId)?.color ?? "#888";
@@ -32,9 +47,10 @@ export function render(
 ): void {
   const { gridSize } = state;
   const { width, height } = canvasSize(gridSize);
+  const palette = boardPalette();
 
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = palette.bg;
   ctx.fillRect(0, 0, width, height);
 
   // Boxes preenchidas
@@ -78,10 +94,10 @@ export function render(
       ctx.strokeStyle = playerColor(state, line.ownerId);
       ctx.lineWidth = 7;
     } else if (isHover) {
-      ctx.strokeStyle = (currentPlayer?.color ?? "#888") + "cc";
+      ctx.strokeStyle = (currentPlayer?.color ?? palette.hoverLine) + "cc";
       ctx.lineWidth = 6;
     } else {
-      ctx.strokeStyle = "#dde1e7";
+      ctx.strokeStyle = palette.emptyLine;
       ctx.lineWidth = 3;
     }
 
@@ -93,7 +109,7 @@ export function render(
     for (let c = 0; c < gridSize; c++) {
       ctx.beginPath();
       ctx.arc(dotX(c), dotY(r), DOT_R, 0, Math.PI * 2);
-      ctx.fillStyle = "#2c3e50";
+      ctx.fillStyle = palette.dot;
       ctx.fill();
     }
   }

@@ -7,6 +7,7 @@ import {
   loadEnergy, spendEnergy, refillEnergy, MAX_ENERGY,
   loadGodMode, saveGodMode, GodModeConfig,
   loadTheme, saveTheme, applyTheme, Theme,
+  getThemePlayerColors,
   getAvailableSkips, useSkip, setSkipCount, SKIPS_PER_WEEK,
   loadVibration, saveVibration, vibrate,
   loadMusicVolume, saveMusicVolume,
@@ -72,7 +73,6 @@ let hoverLine: Line | null = null;
 let godMode: GodModeConfig = loadGodMode();
 
 const app = document.getElementById("app")!;
-const PLAYER_COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12"];
 
 applyTheme();
 
@@ -815,24 +815,27 @@ function showTutorial() {
 function startArcadeStage(stageId: number, godSkip = false) {
   if (!godSkip && !godMode.unlimitedEnergy && !spendEnergy()) { showToast(t("energy_no")); return; }
   const stage = getStage(stageId);
+  const palette = getThemePlayerColors();
   session = {
     mode: "arcade", stageId, botDifficulty: stage.difficulty,
-    controller: new GameController({ gridSize: stage.gridSize, players: [{ name: t("you"), color: PLAYER_COLORS[0]! }, { name: t("bot"), color: PLAYER_COLORS[1]! }] }),
+    controller: new GameController({ gridSize: stage.gridSize, players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }] }),
     botPlayerId: "p2", botThinking: false, freeRetry: false, maxChain: 0,
   };
   showGame();
 }
 function startBotGame(difficulty: BotDifficulty, gridSize: number) {
+  const palette = getThemePlayerColors();
   session = {
     mode: "vs-bot", botDifficulty: difficulty,
-    controller: new GameController({ gridSize, players: [{ name: t("you"), color: PLAYER_COLORS[0]! }, { name: t("bot"), color: PLAYER_COLORS[1]! }] }),
+    controller: new GameController({ gridSize, players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }] }),
     botPlayerId: "p2", botThinking: false, freeRetry: false,
   };
   showGame();
 }
 function startMultiGame(playerCount: number, teamMode: boolean, gridSize: number) {
   const names = playerNames();
-  const players = Array.from({ length: playerCount }, (_, i) => ({ name: names[i]!, color: PLAYER_COLORS[i]! })) as GameConfig["players"];
+  const palette = getThemePlayerColors();
+  const players = Array.from({ length: playerCount }, (_, i) => ({ name: names[i]!, color: palette[i % palette.length] })) as GameConfig["players"];
   session = { mode: "multi", teamMode, playerCount, controller: new GameController({ gridSize, players }), botThinking: false, freeRetry: false };
   showGame();
 }
@@ -881,19 +884,30 @@ function showGame() {
     const st = s.controller.getState();
     const scb = document.getElementById("scoreboard"); const statusEl = document.getElementById("status");
     if (!scb || !statusEl) return;
+    const palette = getThemePlayerColors();
     if (s.teamMode && s.playerCount === 4) {
       const sA = st.players.filter((_,i)=>i%2===0).reduce((a,p)=>a+p.score,0);
       const sB = st.players.filter((_,i)=>i%2===1).reduce((a,p)=>a+p.score,0);
-      scb.innerHTML = `<div class="team-chip" style="--pc:${PLAYER_COLORS[0]}">${t("team_a")} <strong>${sA}</strong></div><div class="team-chip" style="--pc:${PLAYER_COLORS[1]}">${t("team_b")} <strong>${sB}</strong></div>`;
+      scb.innerHTML = `<div class="team-chip" style="--pc:${palette[0]}">${t("team_a")} <strong>${sA}</strong></div><div class="team-chip" style="--pc:${palette[1]}">${t("team_b")} <strong>${sB}</strong></div>`;
     } else {
       scb.innerHTML = st.players.map((p) => {
         const active = p.id === st.currentPlayerId && st.status === "playing";
         return `<div class="player-chip ${active?"player-chip--active":""}" style="--pc:${p.color}"><span class="player-dot"></span><span class="player-name">${p.name}</span><span class="player-score">${p.score}</span></div>`;
       }).join("");
     }
-    if (st.status === "finished") { statusEl.textContent = ""; onGameFinished(); }
-    else if (s.botThinking) { statusEl.textContent = t("game_bot_thinking"); statusEl.style.color = "var(--text-2)"; }
-    else { const cur = st.players.find((p)=>p.id===st.currentPlayerId)!; statusEl.textContent = t("game_turn",{name:cur.name}); statusEl.style.color = cur.color; }
+    if (st.status === "finished") {
+      statusEl.textContent = "";
+      statusEl.dataset.state = "hidden";
+      onGameFinished();
+    } else if (s.botThinking) {
+      statusEl.textContent = t("game_bot_thinking");
+      statusEl.dataset.state = "bot";
+    } else {
+      const cur = st.players.find((p)=>p.id===st.currentPlayerId)!;
+      const isLocalTurn = cur.name === t("you");
+      statusEl.textContent = isLocalTurn ? t("game_turn_you") : t("game_turn",{name:cur.name});
+      statusEl.dataset.state = "turn";
+    }
   }
 
   function onGameFinished() {
@@ -1555,6 +1569,7 @@ html[data-theme="light"] .btn-diff--wild:hover {
 .game-hud {
   position: absolute; top: 10px; left: 16px; right: 16px;
   display: flex; flex-direction: column; gap: 10px; z-index: 2;
+  align-items: center;
   pointer-events: none;
 }
 .game-hud > * { pointer-events: auto; }
@@ -1569,9 +1584,25 @@ html[data-theme="light"] .btn-diff--wild:hover {
 .player-name { font-weight: 600; }
 .player-score { font-weight: 800; color: var(--pc); }
 .team-chip { background: var(--bg-2); border: 2px solid var(--pc); border-radius: 10px; padding: 8px 16px; font-weight: 700; }
-.status { font-size: .92rem; font-weight: 600; min-height: 1.4em; transition: color .2s; }
+.status {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: .82rem; font-weight: 800; letter-spacing: .2px;
+  min-height: 30px; min-width: 110px; transition: all .2s;
+  text-align: center; white-space: nowrap;
+  align-self: center; border: 1px solid transparent;
+}
+.status[data-state="turn"] {
+  background: var(--ui-accent-soft); border-color: var(--ui-accent-border);
+  color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-soft) inset, var(--ui-accent-glow);
+}
+.status[data-state="bot"] {
+  background: var(--bg-2); border-color: var(--border-strong);
+  color: var(--text-2); box-shadow: var(--shadow);
+}
+.status[data-state="hidden"] { opacity: 0; transform: translateY(-4px); }
 .canvas-wrapper { width: 100%; display: flex; justify-content: center; }
-canvas { max-width: 100%; height: auto; border-radius: 14px; background: #fff; box-shadow: var(--shadow); touch-action: none; display: block; }
+canvas { max-width: 100%; height: auto; border-radius: 14px; background: var(--bg-2); box-shadow: var(--shadow); touch-action: none; display: block; }
 
 /* ── MODAL (Settings + God Mode) ────────────────────────────── */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 700; backdrop-filter: blur(6px); animation: fadeIn .2s; }

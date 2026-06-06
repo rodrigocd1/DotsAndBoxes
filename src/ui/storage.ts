@@ -91,6 +91,16 @@ export function applyTheme(): void {
   document.documentElement.setAttribute("data-theme", loadTheme());
 }
 
+const THEME_PLAYER_COLORS: Record<Theme, readonly [string, string, string, string]> = {
+  dark:  ["#22d3ee", "#f472b6", "#a3e635", "#f59e0b"],
+  light: ["#0f766e", "#7c3aed", "#2563eb", "#b45309"],
+  pink:  ["#0f766e", "#1d4ed8", "#7c3aed", "#b45309"],
+};
+
+export function getThemePlayerColors(theme: Theme = loadTheme()): readonly [string, string, string, string] {
+  return THEME_PLAYER_COLORS[theme];
+}
+
 // ── Perfil / XP ───────────────────────────────────────────────────────────
 
 export interface StageProgress {

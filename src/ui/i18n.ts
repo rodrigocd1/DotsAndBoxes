@@ -87,6 +87,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     // Jogo
     game_turn: "Vez de {name}",
+    game_turn_you: "Sua vez!",
     game_bot_thinking: "Bot pensando...",
     stage_label: "Fase {id}",
     vs_bot_label: "vs Bot — {diff}",
@@ -208,6 +209,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     setup_start: "Iniciar Jogo",
 
     game_turn: "Vez de {name}",
+    game_turn_you: "Sua vez!",
     game_bot_thinking: "Bot a pensar...",
     stage_label: "Fase {id}",
     vs_bot_label: "vs Bot — {diff}",
@@ -323,6 +325,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     setup_start: "Iniciar Partida",
 
     game_turn: "Turno de {name}",
+    game_turn_you: "¡Tu turno!",
     game_bot_thinking: "Bot pensando...",
     stage_label: "Fase {id}",
     vs_bot_label: "vs Bot — {diff}",
@@ -438,6 +441,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     setup_start: "Start Game",
 
     game_turn: "{name}'s turn",
+    game_turn_you: "Your turn!",
     game_bot_thinking: "Bot thinking...",
     stage_label: "Stage {id}",
     vs_bot_label: "vs Bot — {diff}",
