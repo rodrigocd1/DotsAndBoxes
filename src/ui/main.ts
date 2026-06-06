@@ -52,6 +52,7 @@ const ICO_MOON_STARS  = tablerSvg(THEME_ICON_SIZE,   `<path d="M12 3c.132 0 .263
 const ICO_SUN         = tablerSvgFilled(THEME_ICON_SIZE, `<path d="M12 19a1 1 0 0 1 .993 .883l.007 .117v1a1 1 0 0 1-1.993 .117l-.007-.117v-1a1 1 0 0 1 1-1z"/><path d="M18.313 16.91l.094 .083l.7 .7a1 1 0 0 1-1.32 1.497l-.094-.083l-.7-.7a1 1 0 0 1 1.218-1.567l.102 .07z"/><path d="M7.007 16.993a1 1 0 0 1 .083 1.32l-.083 .094l-.7 .7a1 1 0 0 1-1.497-1.32l.083-.094l.7-.7a1 1 0 0 1 1.414 0z"/><path d="M4 11a1 1 0 0 1 .117 1.993l-.117 .007h-1a1 1 0 0 1-.117-1.993l.117-.007h1z"/><path d="M21 11a1 1 0 0 1 .117 1.993l-.117 .007h-1a1 1 0 0 1-.117-1.993l.117-.007h1z"/><path d="M6.213 4.81l.094 .083l.7 .7a1 1 0 0 1-1.32 1.497l-.094-.083l-.7-.7a1 1 0 0 1 1.217-1.567l.102 .07z"/><path d="M19.107 4.893a1 1 0 0 1 .083 1.32l-.083 .094l-.7 .7a1 1 0 0 1-1.497-1.32l.083-.094l.7-.7a1 1 0 0 1 1.414 0z"/><path d="M12 2a1 1 0 0 1 .993 .883l.007 .117v1a1 1 0 0 1-1.993 .117l-.007-.117v-1a1 1 0 0 1 1-1z"/><path d="M12 7a5 5 0 1 1-4.995 5.217l-.005-.217l.005-.217a5 5 0 0 1 4.995-4.783z"/>`);
 const ICO_SETTINGS    = tablerSvg(THEME_ICON_SIZE,   `<path d="M10.325 4.317a1.95 1.95 0 0 1 3.35 0l.24 .392a1.95 1.95 0 0 0 1.155 .857l.45 .12a1.95 1.95 0 0 1 1.454 2.138l-.067 .462a1.95 1.95 0 0 0 .39 1.535l.295 .355a1.95 1.95 0 0 1 0 2.5l-.295 .355a1.95 1.95 0 0 0-.39 1.535l.067 .462a1.95 1.95 0 0 1-1.454 2.138l-.45 .12a1.95 1.95 0 0 0-1.155 .857l-.24 .392a1.95 1.95 0 0 1-3.35 0l-.24 -.392a1.95 1.95 0 0 0-1.155 -.857l-.45 -.12a1.95 1.95 0 0 1-1.454 -2.138l.067 -.462a1.95 1.95 0 0 0-.39 -1.535l-.295 -.355a1.95 1.95 0 0 1 0 -2.5l.295 -.355a1.95 1.95 0 0 0 .39 -1.535l-.067 -.462a1.95 1.95 0 0 1 1.454 -2.138l.45 -.12a1.95 1.95 0 0 0 1.155 -.857l.24 -.392z"/><circle cx="12" cy="12" r="3"/>`);
 const ICO_VIBRATION   = tablerSvg(THEME_ICON_SIZE,   `<path d="M3 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -14"/><path d="M8 4l2 0"/><path d="M9 17l0 .01"/><path d="M21 6l-2 3l2 3l-2 3l2 3"/>`);
+const ICO_RESTART     = tablerSvg(THEME_ICON_SIZE,   `<path d="M20 11a8 8 0 1 0 .5 4"/><path d="M20 4v7h-7"/>`);
 
 // ── Versionamento ─────────────────────────────────────────────────────────
 // Regra obrigatória para qualquer IA ou desenvolvedor:
@@ -60,7 +61,7 @@ const ICO_VIBRATION   = tablerSvg(THEME_ICON_SIZE,   `<path d="M3 5a2 2 0 0 1 2 
 //   Formato: v{major}.{minor}.{patch}
 //   Exemplos: v0.1.98 → v0.1.99 → v0.2.0 → v0.2.1
 //   NUNCA alterar major sem decisão explícita do responsável pelo projeto.
-const VERSION = "v0.01.44";
+const VERSION = "v0.01.45";
 
 // ── Estado global ─────────────────────────────────────────────────────────
 interface GameSession {
@@ -1061,7 +1062,10 @@ function showGame() {
         <div class="screen-header">
           <button class="btn-back" id="btn-back">${t("back")}</button>
           <h2>${modeTitle}</h2>
-          ${godMode.unlimitedEnergy ? `<button class="btn-god-corner" id="btn-god-game">👑</button>` : `<span class="header-end-spacer"></span>`}
+          <div class="game-header-actions">
+            ${s.mode === "vs-bot" ? `<button class="btn-restart-corner" id="btn-restart-game" title="${t("restart")}" aria-label="${t("restart")}">${ICO_RESTART}</button>` : `<span class="header-end-spacer"></span>`}
+            ${godMode.unlimitedEnergy ? `<button class="btn-god-corner" id="btn-god-game" title="${t("god_mode")}" aria-label="${t("god_mode")}">👑</button>` : ""}
+          </div>
         </div>
         <div id="scoreboard" class="scoreboard"></div>
         <div id="status" class="status"></div>
@@ -1074,6 +1078,12 @@ function showGame() {
     session = null; hoverLine = null;
     if (s.mode === "arcade") showArcadeMap(); else if (s.mode === "vs-bot") showBotSetup(); else showMultiSetup();
   };
+  document.getElementById("btn-restart-game")?.addEventListener("click", () => {
+    if (s.mode !== "vs-bot") return;
+    const st = s.controller.getState();
+    hoverLine = null;
+    startBotGame(s.botDifficulty!, st.gridSize);
+  });
   document.getElementById("btn-god-game")?.addEventListener("click", () => showGodModeModal(s.stageId));
 
   const canvas = document.getElementById("board") as HTMLCanvasElement;
@@ -1993,6 +2003,14 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
 .section-title-icon svg { width: 15px; height: 15px; flex-shrink: 0; }
 .section-title > span:last-child { min-width: 0; }
 .header-end-spacer { flex: 0 0 72px; }
+.game-header-actions {
+  flex: 0 0 72px;
+  min-width: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
 .btn-back {
   background: var(--ui-accent-soft); border: 1px solid var(--ui-accent-border);
   border-radius: 10px; padding: 8px 14px; color: var(--ui-accent);
@@ -2331,6 +2349,35 @@ html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
   box-shadow: none;
 }
 .energy-ad-dismiss { width: 100%; }
+.game-header-actions .btn-god-corner {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .9rem;
+}
+.btn-restart-corner {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ui-accent-soft);
+  border: 1px solid var(--ui-accent-border);
+  border-radius: 10px;
+  color: var(--ui-accent);
+  cursor: pointer;
+  transition: all .15s;
+  box-shadow: 0 0 0 1px var(--ui-accent-soft) inset;
+}
+.btn-restart-corner:hover {
+  background: var(--bg-3);
+  box-shadow: 0 0 0 1px var(--ui-accent-border) inset, var(--ui-accent-glow);
+}
+.btn-restart-corner svg { width: 15px; height: 15px; }
 `;
 document.head.appendChild(style);
 

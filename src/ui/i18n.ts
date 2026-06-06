@@ -52,6 +52,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     menu_tutorial: "Tutorial",
     menu_tutorial_sub: "Aprenda a jogar",
     back: "← Voltar",
+    restart: "↻ Reiniciar",
     lang_label: "Idioma",
 
     // Energia
@@ -194,6 +195,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     menu_tutorial: "Tutorial",
     menu_tutorial_sub: "Aprenda a jogar",
     back: "← Voltar",
+    restart: "↻ Reiniciar",
     lang_label: "Idioma",
 
     energy_no: "⚡ Sem energia! Aguarde a recarga ou veja um anúncio.",
@@ -317,6 +319,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     menu_tutorial: "Tutorial",
     menu_tutorial_sub: "Aprende a jugar",
     back: "← Volver",
+    restart: "↻ Reiniciar",
     lang_label: "Idioma",
 
     energy_no: "⚡ ¡Sin energía! Espera la recarga o ve un anuncio.",
@@ -440,6 +443,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     menu_tutorial: "Tutorial",
     menu_tutorial_sub: "Learn how to play",
     back: "← Back",
+    restart: "↻ Restart",
     lang_label: "Language",
 
     energy_no: "⚡ No energy! Wait for recharge or watch an ad.",
