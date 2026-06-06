@@ -12,10 +12,11 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "start": "ts-node src/demo.ts",
-    "apk": "npm run build && npx cap sync android && cd android && call .\\gradlew.bat assembleDebug && cd .."
+    "apk": "npm run build && npx cap sync android && cd android && call .\\gradlew.bat assembleDebug && cd .. && node scripts/export-apk.mjs"
   },
   "license": "UNLICENSED",
   "dependencies": {
+    "@capacitor-community/admob": "^8.0.0",
     "@capacitor/android": "^8.4.0",
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0",

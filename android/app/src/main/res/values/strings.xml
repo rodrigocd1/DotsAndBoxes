@@ -4,4 +4,7 @@
     <string name="title_activity_main">Dots and Boxes</string>
     <string name="package_name">com.dotsandboxes.game</string>
     <string name="custom_url_scheme">com.dotsandboxes.game</string>
+    <!-- Produção AdMob desativada por segurança. Ativar somente quando solicitado explicitamente. -->
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <string name="admob_app_id_production">ca-app-pub-5289795165154473~7698786958</string>
 </resources>

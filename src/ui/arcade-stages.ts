@@ -14,7 +14,7 @@ export type ObjectiveType =
   | "margin"        // vencer por N+ caixas de diferença
   | "dominance"     // fechar ≥N% das caixas
   | "chain"         // fechar ≥N caixas em um turno
-  | "clean";        // vencer sem dar nenhuma caixa ao bot
+  | "clean";        // vencer sem dar nenhuma caixa à IA
 
 const TIERS: {
   range: [number, number];
@@ -72,7 +72,7 @@ function objectiveFor(id: number, gridSize: number): Pick<Stage, "objectiveType"
     return {
       objectiveType: "clean",
       objectiveValue: 0,
-      stars: ["Vença", "Vença sem dar caixas ao bot", "Vença sem dar caixas com margem ≥3"],
+      stars: ["Vença", "Vença sem dar caixas à IA", "Vença sem dar caixas com margem ≥3"],
     };
   }
   // mod === 4 → win simples

@@ -6,6 +6,7 @@ const CELL = 80;
 const PAD = 50;
 const DOT_R = 7;
 const HIT = 24;
+export const TOUCH_HIT = 38;
 
 function dotX(col: number): number {
   return PAD + col * CELL;
@@ -32,6 +33,31 @@ function boardPalette() {
 function playerColor(state: GameState, ownerId: string | null): string {
   if (!ownerId) return "#ccc";
   return state.players.find((p) => p.id === ownerId)?.color ?? "#888";
+}
+
+function strokeSegment(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  color: string,
+  width: number,
+  outlineColor: string,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = width + 2.5;
+  ctx.stroke();
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.stroke();
 }
 
 export function canvasSize(gridSize: number): { width: number; height: number } {
@@ -84,24 +110,18 @@ export function render(
 
   for (const line of Object.values(state.lines)) {
     const isHover = hoverLine !== null && lineKey(hoverLine) === lineKey(line);
-
-    ctx.beginPath();
-    ctx.moveTo(dotX(line.from.col), dotY(line.from.row));
-    ctx.lineTo(dotX(line.to.col), dotY(line.to.row));
-    ctx.lineCap = "round";
+    const x1 = dotX(line.from.col);
+    const y1 = dotY(line.from.row);
+    const x2 = dotX(line.to.col);
+    const y2 = dotY(line.to.row);
 
     if (line.ownerId !== null) {
-      ctx.strokeStyle = playerColor(state, line.ownerId);
-      ctx.lineWidth = 7;
+      strokeSegment(ctx, x1, y1, x2, y2, playerColor(state, line.ownerId), 7.75, "rgba(0,0,0,0.36)");
     } else if (isHover) {
-      ctx.strokeStyle = (currentPlayer?.color ?? palette.hoverLine) + "cc";
-      ctx.lineWidth = 6;
+      strokeSegment(ctx, x1, y1, x2, y2, (currentPlayer?.color ?? palette.hoverLine) + "ee", 6.75, "rgba(0,0,0,0.28)");
     } else {
-      ctx.strokeStyle = palette.emptyLine;
-      ctx.lineWidth = 3;
+      strokeSegment(ctx, x1, y1, x2, y2, palette.emptyLine, 3.5, "rgba(0,0,0,0.16)");
     }
-
-    ctx.stroke();
   }
 
   // Pontos
@@ -119,10 +139,12 @@ export function findLineAtPoint(
   state: GameState,
   x: number,
   y: number,
+  hitRadius = HIT,
 ): Line | null {
   const { gridSize } = state;
   let closest: Line | null = null;
-  let minDist = HIT;
+  let minDist = hitRadius;
+  const alongPadding = Math.max(4, Math.round(hitRadius * 0.4));
 
   // Linhas horizontais
   for (let r = 0; r < gridSize; r++) {
@@ -130,7 +152,7 @@ export function findLineAtPoint(
       const lx1 = dotX(c);
       const lx2 = dotX(c + 1);
       const ly = dotY(r);
-      if (x >= lx1 - 4 && x <= lx2 + 4) {
+      if (x >= lx1 - alongPadding && x <= lx2 + alongPadding) {
         const dist = Math.abs(y - ly);
         if (dist < minDist) {
           minDist = dist;
@@ -147,7 +169,7 @@ export function findLineAtPoint(
       const ly1 = dotY(r);
       const ly2 = dotY(r + 1);
       const lx = dotX(c);
-      if (y >= ly1 - 4 && y <= ly2 + 4) {
+      if (y >= ly1 - alongPadding && y <= ly2 + alongPadding) {
         const dist = Math.abs(x - lx);
         if (dist < minDist) {
           minDist = dist;

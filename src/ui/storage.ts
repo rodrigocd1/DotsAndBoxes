@@ -80,21 +80,28 @@ export function vibrate(pattern: number | number[]): void {
 // ── Tema ──────────────────────────────────────────────────────────────────
 export type Theme = "dark" | "light" | "pink";
 const THEME_KEY = "dab_theme";
+function isTheme(value: string | null): value is Theme {
+  return value === "dark" || value === "light" || value === "pink";
+}
+export function hasSavedTheme(): boolean {
+  return isTheme(localStorage.getItem(THEME_KEY));
+}
 export function loadTheme(): Theme {
-  return (localStorage.getItem(THEME_KEY) as Theme | null) ?? "dark";
+  const stored = localStorage.getItem(THEME_KEY);
+  return isTheme(stored) ? stored : "dark";
 }
 export function saveTheme(theme: Theme): void {
   localStorage.setItem(THEME_KEY, theme);
-  document.documentElement.setAttribute("data-theme", theme);
+  applyTheme(theme);
 }
-export function applyTheme(): void {
-  document.documentElement.setAttribute("data-theme", loadTheme());
+export function applyTheme(theme: Theme = loadTheme()): void {
+  document.documentElement.setAttribute("data-theme", theme);
 }
 
 const THEME_PLAYER_COLORS: Record<Theme, readonly [string, string, string, string]> = {
-  dark:  ["#22d3ee", "#f472b6", "#a3e635", "#f59e0b"],
-  light: ["#0f766e", "#7c3aed", "#2563eb", "#b45309"],
-  pink:  ["#0f766e", "#1d4ed8", "#7c3aed", "#b45309"],
+  dark:  ["#22d3ee", "#f472b6", "#f59e0b", "#a855f7"],
+  light: ["#f59e0b", "#7c3aed", "#2563eb", "#db2777"],
+  pink:  ["#ff4fd8", "#2563eb", "#a855f7", "#f59e0b"],
 };
 
 export function getThemePlayerColors(theme: Theme = loadTheme()): readonly [string, string, string, string] {
@@ -175,7 +182,7 @@ export function rankLabel(xp: number): { rank: string; icon: string; next: numbe
 
 // ── Sistema de Energia ────────────────────────────────────────────────────
 
-export const MAX_ENERGY = 15;
+export const MAX_ENERGY = 10;
 const REGEN_MS = 60_000; // 1 energia por minuto
 
 interface EnergyState {
@@ -210,6 +217,10 @@ export function spendEnergy(): boolean {
 
 export function refillEnergy(): void {
   saveEnergy(MAX_ENERGY);
+}
+
+export function addEnergy(amount: number): void {
+  saveEnergy(Math.min(MAX_ENERGY, loadEnergy() + amount));
 }
 
 /** Milissegundos até a próxima recarga de +1 energia */

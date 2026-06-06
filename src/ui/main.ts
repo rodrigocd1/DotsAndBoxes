@@ -1,10 +1,11 @@
 import { GameController, GameConfig } from "./controller";
-import { render, canvasSize, findLineAtPoint } from "./renderer";
+import { render, canvasSize, findLineAtPoint, TOUCH_HIT } from "./renderer";
 import { chooseBotMove, botThinkDelay, BotDifficulty, BOT_DIFFICULTIES, getDiffLabel } from "./bot";
 import { getStage, INITIAL_STAGES } from "./arcade-stages";
 import {
   loadProfile, recordStageResult, rankLabel,
-  loadEnergy, spendEnergy, refillEnergy, MAX_ENERGY,
+  loadEnergy, spendEnergy, refillEnergy, MAX_ENERGY, msToNextEnergy,
+  addEnergy,
   loadGodMode, saveGodMode, GodModeConfig,
   loadTheme, saveTheme, applyTheme, Theme,
   getThemePlayerColors,
@@ -13,6 +14,13 @@ import {
   loadMusicVolume, saveMusicVolume,
   loadMute, saveMute,
 } from "./storage";
+import {
+  ENERGY_REWARD_AMOUNT,
+  REWARDED_AD_STATUS,
+  initializeAdMob,
+  showRewardedEnergyAd,
+  type RewardedAdOutcome,
+} from "./admob";
 import { t, getCurrentLang, setLang, LANG_NAMES, Lang } from "./i18n";
 import { Line, lineKey } from "../models/line";
 import "flag-icons/css/flag-icons.min.css";
@@ -52,7 +60,7 @@ const ICO_VIBRATION   = tablerSvg(THEME_ICON_SIZE,   `<path d="M3 5a2 2 0 0 1 2 
 //   Formato: v{major}.{minor}.{patch}
 //   Exemplos: v0.1.98 → v0.1.99 → v0.2.0 → v0.2.1
 //   NUNCA alterar major sem decisão explícita do responsável pelo projeto.
-const VERSION = "v0.01.34";
+const VERSION = "v0.01.44";
 
 // ── Estado global ─────────────────────────────────────────────────────────
 interface GameSession {
@@ -75,6 +83,7 @@ let godMode: GodModeConfig = loadGodMode();
 const app = document.getElementById("app")!;
 
 applyTheme();
+void initializeAdMob();
 
 // ── Música de fundo ───────────────────────────────────────────────────────
 function sectionTitle(icon: string, label: string): string {
@@ -83,6 +92,13 @@ function sectionTitle(icon: string, label: string): string {
       <span class="section-title-icon">${icon}</span>
       <span>${label}</span>
     </span>`;
+}
+
+function themeLabel(theme: Theme): string {
+  if (theme === "dark") return t("theme_dark");
+  if (theme === "light") return t("theme_light");
+  const pink = t("theme_pink");
+  return pink === "theme_pink" ? "🌸 Rosa" : pink;
 }
 
 const bgMusic = new Audio("./bg_music.mp3");
@@ -114,9 +130,35 @@ document.addEventListener("touchstart", startMusic, { once: true, passive: true 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function playerNames() { return [1,2,3,4].map((n) => t("player_n", { n })); }
 
+const THEME_SETUP_COPY: Record<Lang, { title: string; subtitle: string; tap: string }> = {
+  "pt-BR": {
+    title: "Escolha seu tema",
+    subtitle: "Você pode alterar depois nas configurações.",
+    tap: "Toque para usar",
+  },
+  "pt-PT": {
+    title: "Escolhe o tema",
+    subtitle: "Podes alterar depois nas definições.",
+    tap: "Toca para usar",
+  },
+  "es": {
+    title: "Elige tu tema",
+    subtitle: "Puedes cambiarlo luego en Ajustes.",
+    tap: "Toca para usar",
+  },
+  "en": {
+    title: "Choose your theme",
+    subtitle: "You can change it later in Settings.",
+    tap: "Tap to use",
+  },
+};
+
 function scaled(canvas: HTMLCanvasElement, cx: number, cy: number) {
   const r = canvas.getBoundingClientRect();
-  return { x: (cx - r.left) * (canvas.width / r.width), y: (cy - r.top) * (canvas.height / r.height) };
+  const dpr = window.devicePixelRatio || 1;
+  const scaleX = (canvas.width / dpr) / r.width;
+  const scaleY = (canvas.height / dpr) / r.height;
+  return { x: (cx - r.left) * scaleX, y: (cy - r.top) * scaleY };
 }
 
 function rankProgressSVG(xp: number): string {
@@ -161,6 +203,9 @@ function energyHTML(): string {
   const cur = godMode.unlimitedEnergy ? MAX_ENERGY : loadEnergy();
   const pct = (cur / MAX_ENERGY) * 100;
   const label = godMode.unlimitedEnergy ? "∞" : `${cur}/${MAX_ENERGY}`;
+  const countdown = godMode.unlimitedEnergy || cur >= MAX_ENERGY
+    ? ""
+    : `<span class="energy-timer">${t("energy_next", { s: Math.max(1, Math.ceil(msToNextEnergy() / 1000)) })}</span>`;
   const dots = Array.from({ length: MAX_ENERGY }, (_, i) =>
     `<span class="e-dot ${i < cur ? "full" : ""}"></span>`
   ).join("");
@@ -168,6 +213,7 @@ function energyHTML(): string {
     <div class="energy-row">
       <span class="energy-bolt">⚡</span>
       <span class="energy-count">${label}</span>
+      ${countdown}
       <div class="e-dots-wrap">${dots}</div>
       <div class="e-bar-wrap"><div class="e-bar-fill" style="width:${pct}%"></div></div>
     </div>`;
@@ -327,6 +373,101 @@ function showAdModal(onComplete: ()=>void) {
 }
 
 // ── Settings Modal ────────────────────────────────────────────────────────
+function showEnergyAdPrompt(onWatchAd: ()=>Promise<RewardedAdOutcome>) {
+  const ov = document.createElement("div");
+  ov.className = "modal-overlay";
+  ov.innerHTML = `
+    <div class="modal-card energy-ad-card">
+      <div class="energy-ad-icon">⚡</div>
+      <div class="energy-ad-title">${t("energy_no")}</div>
+      <div class="energy-ad-copy" id="ea-copy">${t("energy_reward_5", { n: ENERGY_REWARD_AMOUNT })}</div>
+      <button class="btn-energy-ad" id="ew">${t("watch_ad", { n: ENERGY_REWARD_AMOUNT })}</button>
+      <button class="btn-cel-map energy-ad-dismiss" id="ec">${t("back")}</button>
+    </div>`;
+  document.body.appendChild(ov);
+  const copyEl = ov.querySelector<HTMLElement>("#ea-copy")!;
+  const watchBtn = ov.querySelector<HTMLButtonElement>("#ew")!;
+  const closeBtn = ov.querySelector<HTMLButtonElement>("#ec")!;
+  let busy = false;
+  const dismiss = () => ov.remove();
+
+  const setIdle = (message: string) => {
+    busy = false;
+    copyEl.textContent = message;
+    watchBtn.disabled = false;
+    watchBtn.textContent = t("watch_ad", { n: ENERGY_REWARD_AMOUNT });
+    closeBtn.disabled = false;
+  };
+
+  const setBusy = () => {
+    busy = true;
+    copyEl.textContent = t("ad_loading");
+    watchBtn.disabled = true;
+    watchBtn.textContent = t("ad_loading");
+    closeBtn.disabled = true;
+  };
+
+  watchBtn.addEventListener("click", async () => {
+    if (busy) return;
+    setBusy();
+    const result = await onWatchAd();
+    if (result.status === REWARDED_AD_STATUS.Rewarded) {
+      dismiss();
+      return;
+    }
+    if (result.status === REWARDED_AD_STATUS.Busy) {
+      setIdle(t("ad_loading"));
+      return;
+    }
+    if (result.status === REWARDED_AD_STATUS.Unavailable) {
+      setIdle(t("ad_unavailable"));
+      return;
+    }
+    if (result.status === REWARDED_AD_STATUS.Dismissed) {
+      setIdle(t("ad_not_completed"));
+      return;
+    }
+    setIdle(t("ad_error"));
+  });
+
+  closeBtn.addEventListener("click", () => {
+    if (!busy) dismiss();
+  });
+  ov.addEventListener("click", (e: any) => {
+    if (!busy && e.target === ov) dismiss();
+  });
+}
+
+async function watchArcadeEnergyReward(stageId: number): Promise<RewardedAdOutcome> {
+  const result = await showRewardedEnergyAd();
+
+  if (result.status === REWARDED_AD_STATUS.Rewarded) {
+    addEnergy(ENERGY_REWARD_AMOUNT);
+    refreshEnergyDisplay();
+    showToast(t("energy_reward_5", { n: ENERGY_REWARD_AMOUNT }));
+    startArcadeStage(stageId);
+    return result;
+  }
+
+  if (result.status === REWARDED_AD_STATUS.Unavailable) {
+    showToast(t("ad_unavailable"));
+    return result;
+  }
+
+  if (result.status === REWARDED_AD_STATUS.Dismissed) {
+    showToast(t("ad_not_completed"));
+    return result;
+  }
+
+  if (result.status === REWARDED_AD_STATUS.Busy) {
+    showToast(t("ad_loading"));
+    return result;
+  }
+
+  showToast(t("ad_error"));
+  return result;
+}
+
 function showSettings() {
   const cur = loadTheme();
   const ov = document.createElement("div");
@@ -340,9 +481,9 @@ function showSettings() {
       <div class="settings-section">
         <label class="settings-label">${t("theme")}</label>
         <div class="theme-row">
-          <button class="btn-theme-opt ${cur==="dark"?"active":""}" data-theme="dark" title="${t("theme_dark")}">${ICO_MOON_STARS}</button>
-          <button class="btn-theme-opt ${cur==="light"?"active":""}" data-theme="light" title="${t("theme_light")}">${ICO_SUN}</button>
-          <button class="btn-theme-opt ${cur==="pink"?"active":""}" data-theme="pink" title="${t("theme_pink")}">🌸</button>
+          <button class="btn-theme-opt ${cur==="dark"?"active":""}" data-theme="dark" title="${themeLabel("dark")}">${ICO_MOON_STARS}</button>
+          <button class="btn-theme-opt ${cur==="light"?"active":""}" data-theme="light" title="${themeLabel("light")}">${ICO_SUN}</button>
+          <button class="btn-theme-opt ${cur==="pink"?"active":""}" data-theme="pink" title="${themeLabel("pink")}">🌸</button>
         </div>
       </div>
       <div class="settings-section">
@@ -490,7 +631,7 @@ function showToast(msg: string) {
 // ── Energia ───────────────────────────────────────────────────────────────
 let energyTimer: ReturnType<typeof setInterval> | null = null;
 function refreshEnergyDisplay() { document.querySelectorAll("#energy-display").forEach((el) => { el.innerHTML = energyHTML(); }); }
-function startEnergyTimer() { if (energyTimer) clearInterval(energyTimer); energyTimer = setInterval(refreshEnergyDisplay, 15_000); }
+function startEnergyTimer() { if (energyTimer) clearInterval(energyTimer); energyTimer = setInterval(refreshEnergyDisplay, 1_000); }
 function stopEnergyTimer() { if (energyTimer) { clearInterval(energyTimer); energyTimer = null; } }
 
 // ── Idioma ────────────────────────────────────────────────────────────────
@@ -524,6 +665,75 @@ function bindLangSelector(root: Element | Document = document) {
 // ── MENU ──────────────────────────────────────────────────────────────────
 let titleClicks = 0; let titleTimer: ReturnType<typeof setTimeout> | null = null;
 
+function showThemeSetup() {
+  stopEnergyTimer(); session = null; hoverLine = null;
+  const lang = getCurrentLang();
+  const copy = THEME_SETUP_COPY[lang];
+  let selectedTheme: Theme | null = null;
+  const choices: Array<{ theme: Theme; icon: string; accent: string; soft: string; border: string }> = [
+    { theme: "dark",  icon: ICO_MOON_STARS, accent: "#06b6d4", soft: "rgba(6,182,212,.14)", border: "rgba(6,182,212,.45)" },
+    { theme: "light", icon: ICO_SUN,        accent: "#f59e0b", soft: "rgba(245,158,11,.14)", border: "rgba(245,158,11,.45)" },
+    { theme: "pink",  icon: "🌸",            accent: "#ec4899", soft: "rgba(236,72,153,.14)", border: "rgba(236,72,153,.42)" },
+  ];
+
+  app.innerHTML = `
+    <div class="screen theme-setup-screen">
+      <div class="theme-setup-hero">
+        <div class="theme-setup-brand">
+          <h1>Dots &amp; Boxes</h1>
+        </div>
+        <h2>${copy.title}</h2>
+        <p class="theme-setup-subtitle">${copy.subtitle}</p>
+      </div>
+      <div class="theme-setup-panel">
+        ${choices.map((choice) => `
+          <button class="theme-choice" data-theme="${choice.theme}" aria-label="${themeLabel(choice.theme)}" title="${themeLabel(choice.theme)}" style="--choice-accent:${choice.accent};--choice-accent-soft:${choice.soft};--choice-accent-border:${choice.border};">
+            <span class="theme-choice-icon">${choice.icon}</span>
+            <span class="theme-choice-text">
+              <strong>${themeLabel(choice.theme).replace(/^.\s/, "")}</strong>
+              <small>${copy.tap}</small>
+            </span>
+            <span class="theme-choice-arrow">›</span>
+          </button>
+        `).join("")}
+      </div>
+      <div class="theme-setup-actions">
+        <button class="btn-theme-confirm" id="theme-confirm" disabled>${t("theme_confirm")}</button>
+      </div>
+    </div>`;
+
+  const confirmBtn = app.querySelector<HTMLButtonElement>("#theme-confirm")!;
+  const choiceButtons = Array.from(app.querySelectorAll<HTMLButtonElement>(".theme-choice"));
+
+  const syncSelection = () => {
+    for (const button of choiceButtons) {
+      const theme = button.dataset["theme"] as Theme | undefined;
+      const active = selectedTheme !== null && theme === selectedTheme;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+    confirmBtn.disabled = selectedTheme === null;
+  };
+
+  for (const button of choiceButtons) {
+    button.addEventListener("click", () => {
+      const theme = button.dataset["theme"] as Theme | undefined;
+      if (!theme) return;
+      selectedTheme = theme;
+      applyTheme(theme);
+      syncSelection();
+    });
+  }
+
+  confirmBtn.addEventListener("click", () => {
+    if (!selectedTheme) return;
+    saveTheme(selectedTheme);
+    showMenu();
+  });
+
+  syncSelection();
+}
+
 function showMenu() {
   stopEnergyTimer(); session = null; hoverLine = null;
   const profile = loadProfile();
@@ -537,6 +747,7 @@ function showMenu() {
       <div class="topbar">
         <div></div>
         <div class="topbar-right">
+          <div id="energy-display" class="menu-energy-chip">${energyHTML()}</div>
           <button class="btn-settings-pill" id="btn-settings" title="${t("settings")}" aria-label="${t("settings")}">${ICO_SETTINGS}<span>${t("settings")}</span></button>
           <button class="btn-profile-icon" id="btn-profile" title="${t("profile")}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
@@ -544,63 +755,57 @@ function showMenu() {
         </div>
       </div>
 
-      <div class="menu-logo" id="menu-title">
-        <h1>Dots &amp; Boxes</h1>
-        <p class="menu-tagline">${t("tagline")}</p>
-      </div>
-
-      <div class="rank-card">
-        <div class="rank-ring-wrap">
-          ${rankProgressSVG(profile.xp)}
+      <div class="menu-main">
+        <div class="menu-logo" id="menu-title">
+          <h1>Dots &amp; Boxes</h1>
+          <p class="menu-tagline">${t("tagline")}</p>
         </div>
-        <div class="rank-info">
-          <span class="rank-name">${rank.rank}</span>
-          <span class="rank-xp">${profile.xp.toLocaleString()} XP</span>
+
+        <div class="rank-card">
+          <div class="rank-ring-wrap">
+            ${rankProgressSVG(profile.xp)}
+          </div>
+          <div class="rank-info">
+            <span class="rank-name">${rank.rank}</span>
+            <span class="rank-xp">${profile.xp.toLocaleString()} XP</span>
+          </div>
+          ${godMode.unlimitedEnergy ? `<button class="btn-god-ring" id="btn-god-menu">👑</button>` : ""}
         </div>
-        ${godMode.unlimitedEnergy ? `<button class="btn-god-ring" id="btn-god-menu">👑</button>` : ""}
-      </div>
 
-      <div id="energy-display">${energyHTML()}</div>
-
-      <div class="menu-buttons">
-        <button class="btn-menu btn-arcade" id="btn-arcade">
-          <div class="btn-menu-icon-wrap btn-icon--arcade">${ICO_STAR}</div>
-          <div class="btn-menu-text">
-            <strong>${t("menu_arcade")}</strong>
-            <small>${t("menu_arcade_sub", { done, total: INITIAL_STAGES })}</small>
-          </div>
-          ${isNew ? `<span class="badge-new">NEW</span>` : ""}
-        </button>
-        <button class="btn-menu btn-bot" id="btn-bot">
-          <div class="btn-menu-icon-wrap btn-icon--bot">${ICO_BARBELL}</div>
-          <div class="btn-menu-text">
-            <strong>${t("menu_bot")}</strong>
-            <small>${t("menu_bot_sub")}</small>
-          </div>
-        </button>
-        <button class="btn-menu btn-multi" id="btn-multi">
-          <div class="btn-menu-icon-wrap btn-icon--multi">${ICO_USERS}</div>
-          <div class="btn-menu-text">
-            <strong>${t("menu_multi")}</strong>
-            <small>${t("menu_multi_sub")}</small>
-          </div>
-        </button>
-      </div>
-
-      ${langSelectorHTML()}
-
-      <button class="btn-menu btn-tutorial" id="btn-tutorial">
-        <div class="btn-menu-icon-wrap btn-icon--tutorial">${ICO_BOOK}</div>
-        <div class="btn-menu-text">
-          <strong>${t("menu_tutorial")}</strong>
-          <small>${t("menu_tutorial_sub")}</small>
+        <div class="menu-buttons">
+          <button class="btn-menu btn-arcade" id="btn-arcade">
+            <div class="btn-menu-icon-wrap btn-icon--arcade">${ICO_STAR}</div>
+            <div class="btn-menu-text">
+              <strong>${t("menu_arcade")}</strong>
+              <small>${t("menu_arcade_sub", { done, total: INITIAL_STAGES })}</small>
+            </div>
+            ${isNew ? `<span class="badge-new">NEW</span>` : ""}
+          </button>
+          <button class="btn-menu btn-bot" id="btn-bot">
+            <div class="btn-menu-icon-wrap btn-icon--bot">${ICO_BARBELL}</div>
+            <div class="btn-menu-text">
+              <strong>${t("menu_bot")}</strong>
+              <small>${t("menu_bot_sub")}</small>
+            </div>
+          </button>
+          <button class="btn-menu btn-multi" id="btn-multi">
+            <div class="btn-menu-icon-wrap btn-icon--multi">${ICO_USERS}</div>
+            <div class="btn-menu-text">
+              <strong>${t("menu_multi")}</strong>
+              <small>${t("menu_multi_sub")}</small>
+            </div>
+          </button>
         </div>
-      </button>
 
-      <div class="theme-toggle-wrap">
-        <button class="theme-toggle-opt ${loadTheme()==="dark"?"active":""}" data-t="dark" title="${t("theme_dark").replace(/^.\s/,"")}">${ICO_MOON_STARS}</button>
-        <button class="theme-toggle-opt ${loadTheme()==="light"?"active":""}" data-t="light" title="${t("theme_light").replace(/^.\s/,"")}">${ICO_SUN}</button>
-        <button class="theme-toggle-opt ${loadTheme()==="pink"?"active":""}" data-t="pink" title="${t("theme_pink").replace(/^.\s/,"")}">🌸</button>
+        ${langSelectorHTML()}
+
+        <button class="btn-menu btn-tutorial" id="btn-tutorial">
+          <div class="btn-menu-icon-wrap btn-icon--tutorial">${ICO_BOOK}</div>
+          <div class="btn-menu-text">
+            <strong>${t("menu_tutorial")}</strong>
+            <small>${t("menu_tutorial_sub")}</small>
+          </div>
+        </button>
       </div>
 
       <div class="bottom-bar">
@@ -620,9 +825,6 @@ function showMenu() {
   document.getElementById("btn-bot")!.onclick      = showBotSetup;
   document.getElementById("btn-multi")!.onclick    = showMultiSetup;
   document.getElementById("btn-tutorial")!.onclick = showTutorial;
-  document.querySelectorAll(".theme-toggle-opt").forEach((b) => {
-    (b as HTMLElement).onclick = () => { saveTheme((b as HTMLElement).dataset["t"] as Theme); showMenu(); };
-  });
   document.getElementById("btn-settings")!.onclick = showSettings;
   document.getElementById("btn-profile")?.addEventListener("click", () => showToast("👤 " + t("profile") + " — em breve!"));
   document.getElementById("btn-god-menu")?.addEventListener("click", () => showGodModeModal());
@@ -813,7 +1015,10 @@ function showTutorial() {
 
 // ── STARTERS ──────────────────────────────────────────────────────────────
 function startArcadeStage(stageId: number, godSkip = false) {
-  if (!godSkip && !godMode.unlimitedEnergy && !spendEnergy()) { showToast(t("energy_no")); return; }
+  if (!godSkip && !godMode.unlimitedEnergy && !spendEnergy()) {
+    showEnergyAdPrompt(() => watchArcadeEnergyReward(stageId));
+    return;
+  }
   const stage = getStage(stageId);
   const palette = getThemePlayerColors();
   session = {
@@ -860,6 +1065,7 @@ function showGame() {
         </div>
         <div id="scoreboard" class="scoreboard"></div>
         <div id="status" class="status"></div>
+        ${s.mode === "arcade" ? `<div id="energy-display" class="game-energy-display">${energyHTML()}</div>` : ""}
       </div>
       <div class="canvas-wrapper"><canvas id="board"></canvas></div>
     </div>`;
@@ -876,7 +1082,12 @@ function showGame() {
   function draw() {
     const st = s.controller.getState();
     const { width, height } = canvasSize(st.gridSize);
-    canvas.width = width; canvas.height = height;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     render(ctx, st, hoverLine, s.teamMode ?? false); updateHUD();
   }
 
@@ -945,7 +1156,7 @@ function showGame() {
           () => { if (nextId) startArcadeStage(nextId); else showArcadeMap(); },
           () => { session=null; hoverLine=null; showArcadeMap(); });
       } else {
-        const retryFn = () => { if (!godMode.unlimitedEnergy && !spendEnergy()) { showToast(t("energy_no")); return; } session=null; hoverLine=null; startArcadeStage(s.stageId!,true); };
+        const retryFn = () => { session=null; hoverLine=null; startArcadeStage(s.stageId!); };
         const mapFn  = () => { session=null; hoverLine=null; showArcadeMap(); };
         const nextId = s.stageId! < INITIAL_STAGES ? s.stageId! + 1 : null;
         const skipInfo: SkipInfo | undefined = (!tied && nextId != null) ? {
@@ -1006,9 +1217,18 @@ function showGame() {
     canvas.style.cursor=hoverLine?"pointer":"default";
   });
   canvas.addEventListener("mouseleave",()=>{hoverLine=null;draw();canvas.style.cursor="default";});
-  canvas.addEventListener("click",(e)=>{ const{x,y}=scaled(canvas,e.clientX,e.clientY); const f=findLineAtPoint(s.controller.getState(),x,y); if(f) handleMove(f); });
-  canvas.addEventListener("touchend",(e)=>{ e.preventDefault(); const touch=e.changedTouches[0]; if(!touch) return; const{x,y}=scaled(canvas,touch.clientX,touch.clientY); const f=findLineAtPoint(s.controller.getState(),x,y); if(f) handleMove(f); },{passive:false});
+  canvas.addEventListener("pointerdown",(e) => {
+    const st=s.controller.getState();
+    if(st.status==="finished"||s.botThinking||isBotTurn()) return;
+    if(e.pointerType==="mouse" && e.button!==0) return;
+    if(e.pointerType!=="mouse") e.preventDefault();
+    const hitRadius = e.pointerType==="mouse" ? 24 : TOUCH_HIT;
+    const {x,y}=scaled(canvas,e.clientX,e.clientY);
+    const f=findLineAtPoint(st,x,y,hitRadius);
+    if(f) handleMove(f);
+  });
   draw();
+  if (s.mode === "arcade") startEnergyTimer();
   if (isBotTurn()) scheduleBotMove();
 }
 
@@ -1032,6 +1252,7 @@ style.textContent = `
   --ui-accent-soft:rgba(6,182,212,0.14);
   --ui-accent-border:rgba(6,182,212,0.42);
   --ui-accent-glow:0 0 16px rgba(6,182,212,0.18);
+  --ui-accent-contrast:#ffffff;
   --toggle-on:     #22c55e;
   --arcade-border: linear-gradient(135deg,#ec4899,#8b5cf6,#06b6d4);
   --arcade-glow:   0 0 24px rgba(139,92,246,0.25), 0 0 48px rgba(236,72,153,0.1);
@@ -1054,6 +1275,7 @@ html[data-theme="light"] {
   --ui-accent-soft:rgba(245,158,11,0.14);
   --ui-accent-border:rgba(245,158,11,0.45);
   --ui-accent-glow:0 0 16px rgba(245,158,11,0.18);
+  --ui-accent-contrast:#2d1f0e;
   --toggle-on:     #f59e0b;
   --arcade-border: linear-gradient(135deg,#3b82f6,#6366f1);
   --arcade-glow:   0 0 16px rgba(59,130,246,0.15);
@@ -1076,6 +1298,7 @@ html[data-theme="pink"] {
   --ui-accent-soft:rgba(236,72,153,0.14);
   --ui-accent-border:rgba(236,72,153,0.4);
   --ui-accent-glow:0 0 16px rgba(236,72,153,0.18);
+  --ui-accent-contrast:#ffffff;
   --toggle-on:     #ec4899;
   --arcade-border: linear-gradient(135deg,#ec4899,#f9a8d4);
   --arcade-glow:   0 0 16px rgba(236,72,153,0.2);
@@ -1159,8 +1382,15 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
 
 /* ── MENU ────────────────────────────────────────────────────── */
 .menu-screen { justify-content: flex-start; padding-top: 4px; gap: 14px; }
+.menu-main {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
 .menu-logo { cursor: pointer; user-select: none; text-align: center; }
-.menu-logo h1 {
+.menu-logo h1,
+.theme-setup-brand h1 {
   font-size: 2.4rem; font-weight: 900; letter-spacing: -1px;
   background: var(--title-gradient);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
@@ -1168,7 +1398,124 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
 }
 .menu-tagline { color: var(--text-2); font-size: .88rem; margin-top: 2px; }
 
+.theme-setup-screen {
+  justify-content: center;
+  gap: 18px;
+  padding-top: 28px;
+  padding-bottom: 32px;
+}
+.theme-setup-hero {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+.theme-setup-brand { cursor: default; user-select: none; text-align: center; }
+.theme-setup-brand h1 { font-size: 2.3rem; }
+.theme-setup-subtitle {
+  font-size: .88rem;
+  color: var(--text-2);
+  font-weight: 600;
+  letter-spacing: .1px;
+}
+.theme-setup-hero h2 {
+  font-size: 1.35rem;
+  color: var(--text);
+  font-weight: 800;
+}
+.theme-setup-panel {
+  width: min(100%, 460px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.theme-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1.5px solid var(--choice-accent-border);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--choice-accent-soft) 22%, var(--bg-2) 78%) 0%, var(--bg-2) 100%);
+  color: var(--text);
+  cursor: pointer;
+  transition: all .15s;
+  box-shadow: 0 0 0 1px var(--choice-accent-soft) inset;
+}
+.theme-choice:hover {
+  background: var(--bg-3);
+  color: var(--text);
+  border-color: var(--choice-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px var(--choice-accent-border) inset, 0 0 18px var(--choice-accent-soft);
+}
+.theme-choice.active {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--choice-accent-soft) 46%, var(--bg-2) 54%) 0%, color-mix(in srgb, var(--choice-accent-soft) 18%, var(--bg-2) 82%) 100%);
+  border-color: var(--choice-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px var(--choice-accent-soft) inset, 0 14px 28px var(--choice-accent-soft);
+}
+.theme-choice-icon {
+  width: 44px; height: 44px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  background: var(--choice-accent-soft);
+  border: 1px solid var(--choice-accent-border);
+  color: var(--choice-accent);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.02) inset;
+}
+.theme-choice-icon svg { width: 18px; height: 18px; flex-shrink: 0; }
+.theme-choice-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+.theme-choice-text strong { font-size: .98rem; font-weight: 800; }
+.theme-choice-text small { font-size: .76rem; color: var(--text-2); }
+.theme-choice-arrow {
+  color: var(--choice-accent);
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
 /* ── RANK CARD ───────────────────────────────────────────────── */
+.theme-setup-actions {
+  width: min(100%, 460px);
+  display: flex;
+  justify-content: center;
+}
+.btn-theme-confirm {
+  width: 100%;
+  background: var(--ui-accent);
+  color: var(--ui-accent-contrast);
+  border: none;
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: .96rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .15s;
+  box-shadow: 0 10px 28px var(--ui-accent-soft);
+}
+.btn-theme-confirm:hover:not(:disabled) {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+.btn-theme-confirm:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 .rank-card {
   display: flex; align-items: center; gap: 14px;
   background: var(--bg-2); border: 1px solid var(--border-strong);
@@ -1195,12 +1542,34 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
   display: flex; align-items: center; gap: 10px;
   width: 100%; justify-content: center;
 }
-.energy-bolt { font-size: 1.1rem; }
-.energy-count { font-weight: 800; color: #22c55e; font-size: .9rem; min-width: 36px; }
+.energy-bolt { font-size: 1.1rem; color: var(--ui-accent); }
+.energy-count { font-weight: 800; color: var(--ui-accent); font-size: .9rem; min-width: 36px; }
+.energy-timer { font-size: .75rem; font-weight: 700; color: var(--text-2); white-space: nowrap; }
 .e-dots-wrap { display: none; }
 .menu-screen .energy-row { flex-wrap: wrap; justify-content: center; row-gap: 6px; }
 .menu-screen .e-dots-wrap { display: flex; flex-basis: 100%; justify-content: center; gap: 3px; }
 .menu-screen .e-bar-wrap  { display: none; }
+.menu-energy-chip {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.menu-energy-chip .energy-row {
+  width: auto;
+  flex-wrap: nowrap;
+  gap: 6px;
+  justify-content: flex-end;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--ui-accent-soft);
+  border: 1px solid var(--ui-accent-border);
+  box-shadow: 0 0 0 1px var(--ui-accent-soft) inset;
+}
+.menu-energy-chip .energy-bolt { font-size: .95rem; }
+.menu-energy-chip .energy-count { min-width: 0; font-size: .72rem; }
+.menu-energy-chip .energy-timer { font-size: .64rem; }
+.menu-energy-chip .e-dots-wrap,
+.menu-energy-chip .e-bar-wrap { display: none; }
 .e-bar-wrap {
   display: flex; flex: 1; max-width: 200px; height: 13px;
   background: rgba(0,0,0,.35); border-radius: 6px; overflow: hidden;
@@ -1209,8 +1578,8 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
 }
 .e-bar-fill {
   height: 100%; border-radius: 6px; transition: width .4s ease;
-  background: linear-gradient(90deg, #16a34a 0%, #22c55e 60%, #86efac 100%);
-  box-shadow: 0 0 10px #22c55e88;
+  background: linear-gradient(90deg, var(--ui-accent) 0%, color-mix(in srgb, var(--ui-accent) 72%, #ffffff 28%) 60%, color-mix(in srgb, var(--ui-accent) 42%, #ffffff 58%) 100%);
+  box-shadow: 0 0 10px var(--ui-accent-soft);
   background-size: 200px 100%;
 }
 
@@ -1430,14 +1799,176 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
 }
 
 @media (max-width: 767px) {
-  .menu-logo {
-    margin-top: clamp(18px, 4vh, 56px);
+  .screen {
+    padding: 10px 14px 14px;
+    gap: 10px;
+  }
+  .menu-screen {
+    gap: 8px;
+    padding-top: 4px;
+  }
+  .menu-main {
+    flex: 1 1 auto;
+    justify-content: center;
+    gap: 8px;
+    padding-block: clamp(4px, 1.2vh, 10px);
+    transform: translateY(-25px);
+  }
+  .topbar {
+    padding-top: 0;
+  }
+  .topbar-right {
+    gap: 6px;
+  }
+  .btn-settings-pill {
+    min-height: 34px;
+    padding: 0 10px 0 9px;
+    font-size: .7rem;
+  }
+  .btn-settings-pill svg {
+    width: 15px;
+    height: 15px;
+  }
+  .btn-profile-icon {
+    width: 34px;
+    height: 34px;
+  }
+  .btn-profile-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  .menu-energy-chip .energy-row {
+    padding: 5px 8px;
+    gap: 5px;
+  }
+  .menu-energy-chip .energy-bolt {
+    font-size: .88rem;
+  }
+  .menu-energy-chip .energy-count {
+    font-size: .68rem;
+  }
+  .menu-energy-chip .energy-timer {
+    font-size: .6rem;
+  }
+  .menu-logo { margin-top: 0; }
+  .menu-logo h1 {
+    font-size: clamp(1.55rem, 7vw, 1.95rem);
+    line-height: .96;
+  }
+  .menu-tagline {
+    font-size: .72rem;
+    margin-top: 0;
+  }
+  .rank-card {
+    padding: 8px 12px;
+    gap: 10px;
+    border-radius: 14px;
+  }
+  .rank-ring-wrap {
+    width: 44px;
+    height: 44px;
+  }
+  .rank-name {
+    font-size: .92rem;
+  }
+  .rank-xp {
+    font-size: .7rem;
+  }
+  .btn-god-ring {
+    font-size: .95rem;
+  }
+  .menu-buttons {
+    gap: 8px;
+  }
+  .btn-menu {
+    padding: 10px 12px;
+    border-radius: 14px;
+    gap: 10px;
+    min-height: 44px;
+  }
+  .btn-menu-icon-wrap {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    font-size: 1rem;
+  }
+  .btn-menu-text {
+    align-items: flex-start;
+    gap: 0;
+  }
+  .btn-menu-text strong {
+    font-size: .87rem;
+  }
+  .btn-menu-text small {
+    font-size: .66rem;
+    line-height: 1.05;
+  }
+  .badge-new {
+    top: 8px;
+    right: 8px;
+    font-size: .52rem;
+    padding: 2px 5px;
+  }
+  .theme-setup-screen {
+    padding-top: 20px;
+    padding-bottom: 24px;
+  }
+  .theme-setup-brand h1 {
+    font-size: 1.95rem;
+  }
+  .theme-setup-panel {
+    width: 100%;
+  }
+  .lang-selector {
+    gap: 6px;
+  }
+  .btn-lang {
+    width: 34px;
+    height: 34px;
+  }
+  .btn-lang .fi-flag-icon {
+    font-size: 1.05rem;
   }
   .bottom-bar {
-    padding-bottom: 4px;
+    padding-bottom: 2px;
+    gap: 6px;
   }
-  .screen:not(.menu-screen):not(.game-screen) {
+  .platform-pills {
+    padding: 4px 10px;
+    gap: 8px;
+  }
+  .platform-pill {
+    font-size: .62rem;
+    letter-spacing: .45px;
+  }
+  .bottom-star {
+    font-size: 1rem;
+  }
+  .version-tag {
+    font-size: .6rem;
+  }
+  .screen:not(.menu-screen):not(.game-screen):not(.theme-setup-screen) {
     padding-top: clamp(48px, 8vh, 80px);
+  }
+}
+
+@media (max-width: 767px) and (max-height: 700px) {
+  .menu-tagline,
+  .btn-menu-text small,
+  .platform-pills {
+    display: none;
+  }
+  .menu-screen {
+    gap: 6px;
+  }
+  .menu-main {
+    gap: 6px;
+    padding-block: 0;
+    transform: translateY(-25px);
+  }
+  .bottom-bar {
+    padding-top: 2px;
+    min-height: 16px;
   }
 }
 
@@ -1490,13 +2021,13 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
   padding: 8px 4px; cursor: pointer; color: var(--text);
   display: flex; flex-direction: column; align-items: center; gap: 2px; transition: all .15s;
 }
-.stage-cell:disabled { opacity: .3; cursor: not-allowed; }
+.stage-cell:disabled { opacity: .58; cursor: not-allowed; filter: saturate(.92); }
 .stage-cell.unlocked:hover { background: var(--bg-3); border-color: var(--border-strong); }
-.stage-cell.stars-3 { border-color: rgba(243,156,18,.5); }
+.stage-cell.stars-3 { border-color: color-mix(in srgb, var(--ui-accent) 78%, #ffffff 22%); }
 .stage-cell.stars-2 { border-color: var(--ui-accent-border); }
-.stage-cell.stars-1 { border-color: rgba(46,204,113,.4); }
+.stage-cell.stars-1 { border-color: color-mix(in srgb, var(--ui-accent) 40%, transparent); }
 .stage-num { font-size: .85rem; font-weight: 700; }
-.stage-stars { font-size: .6rem; color: #f39c12; }
+.stage-stars { font-size: .6rem; color: var(--ui-accent); }
 
 /* ── SETUP ───────────────────────────────────────────────────── */
 .setup-screen { gap: 20px; }
@@ -1572,7 +2103,9 @@ html[data-theme="light"] .btn-diff--wild:hover {
   align-items: center;
   pointer-events: none;
 }
-.game-hud > * { pointer-events: auto; }
+.game-hud > * { pointer-events: none; }
+.game-hud .screen-header,
+.game-hud .screen-header * { pointer-events: auto; }
 .game-screen .canvas-wrapper { display: flex; justify-content: center; }
 @media (max-width: 767px) {
   .game-screen .canvas-wrapper { margin-bottom: 40px; }
@@ -1601,6 +2134,13 @@ html[data-theme="light"] .btn-diff--wild:hover {
   color: var(--text-2); box-shadow: var(--shadow);
 }
 .status[data-state="hidden"] { opacity: 0; transform: translateY(-4px); }
+.game-energy-display {
+  width: min(360px, 100%);
+  display: flex;
+  justify-content: center;
+}
+.game-energy-display .energy-row { max-width: 360px; }
+.game-energy-display .e-bar-wrap { max-width: 220px; }
 .canvas-wrapper { width: 100%; display: flex; justify-content: center; }
 canvas { max-width: 100%; height: auto; border-radius: 14px; background: var(--bg-2); box-shadow: var(--shadow); touch-action: none; display: block; }
 
@@ -1741,6 +2281,56 @@ html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
 @keyframes fadeInUp  { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
 @keyframes bounceIn  { 0%{transform:scale(.2);opacity:0} 60%{transform:scale(1.15)} 80%{transform:scale(.95)} 100%{transform:scale(1);opacity:1} }
 @keyframes starPop   { 0%{transform:scale(0) rotate(-45deg);opacity:0} 60%{transform:scale(1.3) rotate(8deg)} 100%{transform:scale(1) rotate(0);opacity:1} }
+
+.energy-ad-card {
+  width: min(340px, calc(100vw - 32px));
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+.energy-ad-icon {
+  width: 56px; height: 56px; border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
+  border: 1px solid var(--ui-accent-border);
+  box-shadow: 0 0 0 1px var(--ui-accent-soft) inset;
+  font-size: 1.6rem;
+}
+.energy-ad-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.35;
+}
+.energy-ad-copy {
+  font-size: .86rem;
+  color: var(--text-2);
+  font-weight: 600;
+}
+.btn-energy-ad {
+  width: 100%;
+  background: var(--ui-accent);
+  color: var(--ui-accent-contrast);
+  border: none;
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: .95rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: filter .15s, transform .15s, box-shadow .15s;
+  box-shadow: 0 10px 28px var(--ui-accent-soft);
+}
+.btn-energy-ad:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.btn-energy-ad:active { transform: translateY(0); }
+.btn-energy-ad:disabled {
+  cursor: wait;
+  opacity: .72;
+  filter: saturate(.8);
+  transform: none;
+  box-shadow: none;
+}
+.energy-ad-dismiss { width: 100%; }
 `;
 document.head.appendChild(style);
 

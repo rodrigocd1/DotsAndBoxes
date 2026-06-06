@@ -57,6 +57,8 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Energia
     energy_no: "⚡ Sem energia! Aguarde a recarga ou assista um anúncio.",
     energy_recharged: "⚡ Energia recarregada!",
+    energy_reward_5: "⚡ +{n} energia!",
+    energy_next: "+1 em {s}s",
     energy_unlimited: "∞",
 
     // Configurações
@@ -64,10 +66,11 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     theme: "Tema",
     theme_dark: "🌙 Escuro",
     theme_light: "☀️ Claro",
+    theme_confirm: "Confirmar tema",
     multiplatform: "Multiplataforma",
     profile: "Perfil",
 
-    // Bot
+    // IA
     diff_muito_facil: "Muito Fácil",
     diff_facil: "Fácil",
     diff_medio: "Médio",
@@ -88,9 +91,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Jogo
     game_turn: "Vez de {name}",
     game_turn_you: "Sua vez!",
-    game_bot_thinking: "Bot pensando...",
+    game_bot_thinking: "IA pensando...",
     stage_label: "Fase {id}",
-    vs_bot_label: "vs Bot — {diff}",
+    vs_bot_label: "vs IA — {diff}",
     teams_2v2: "Duplas 2v2",
     n_players: "{n} Jogadores",
     team_a: "Time A",
@@ -110,7 +113,11 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     you_lost: "Você perdeu!",
     you_tied: "🤝 Você empatou!",
     try_again: "⚡ Tentar de novo",
-    watch_ad: "📺 Assistir anúncio",
+    watch_ad: "📺 Assistir anúncio para ganhar +{n} energia",
+    ad_loading: "Carregando anúncio...",
+    ad_unavailable: "Anúncio indisponível no momento. Tente novamente em instantes.",
+    ad_not_completed: "Assista até o final para receber a recompensa.",
+    ad_error: "Não foi possível carregar o anúncio.",
     skip_phase: "Deseja pular a fase?",
     skip_via_ad: "📺 Pular com anúncio ({n} restantes)",
     no_skips_left: "Sem pulos disponíveis esta semana",
@@ -118,7 +125,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     tut_step1_title: "Conecte os pontos",    tut_step1_desc: "Clique em dois pontos adjacentes para traçar uma linha.",
     tut_step2_title: "Feche o quadrado",     tut_step2_desc: "Ao fechar o 4º lado de um quadrado você pontua e joga de novo.",
     tut_step3_title: "Marque mais pontos",   tut_step3_desc: "Vence quem fechar mais quadrados quando todas as linhas acabarem.",
-    tut_step4_title: "Cuidado com o bot",    tut_step4_desc: "Não deixe o 3º lado de um quadrado aberto — o bot vai completar!",
+    tut_step4_title: "Cuidado com a IA",     tut_step4_desc: "Não deixe o 3º lado de um quadrado aberto — a IA vai completar!",
     tut_hint: "Cada ponto conecta-se aos vizinhos. Um quadrado tem 4 lados.",
 
     // Anúncio
@@ -147,7 +154,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Jogadores
     player_n: "Jogador {n}",
     you: "Você",
-    bot: "Bot",
+    bot: "IA",
 
     // Ranks
     rank_master:     "Mestre",
@@ -174,6 +181,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     theme_dark: "🌙 Escuro",
     theme_light: "☀️ Claro",
     theme_pink: "🌸 Rosa",
+    theme_confirm: "Confirmar tema",
     multiplatform: "Multiplataforma",
     profile: "Perfil",
     tagline: "Conecte • Feche • Domine",
@@ -190,6 +198,8 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     energy_no: "⚡ Sem energia! Aguarde a recarga ou veja um anúncio.",
     energy_recharged: "⚡ Energia recarregada!",
+    energy_reward_5: "⚡ +{n} energia!",
+    energy_next: "+1 em {s}s",
     energy_unlimited: "∞",
 
     diff_muito_facil: "Muito Fácil",
@@ -210,9 +220,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     game_turn: "Vez de {name}",
     game_turn_you: "Sua vez!",
-    game_bot_thinking: "Bot a pensar...",
+    game_bot_thinking: "IA a pensar...",
     stage_label: "Fase {id}",
-    vs_bot_label: "vs Bot — {diff}",
+    vs_bot_label: "vs IA — {diff}",
     teams_2v2: "Duplas 2v2",
     n_players: "{n} Jogadores",
     team_a: "Equipa A",
@@ -230,7 +240,11 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     you_lost: "Perdeu!",
     you_tied: "🤝 Empatou!",
     try_again: "⚡ Tentar novamente",
-    watch_ad: "📺 Ver anúncio",
+    watch_ad: "📺 Ver anúncio para ganhar +{n} energia",
+    ad_loading: "A carregar anúncio...",
+    ad_unavailable: "Anúncio indisponível de momento. Tenta novamente dentro de instantes.",
+    ad_not_completed: "Vê o anúncio até ao fim para receber a recompensa.",
+    ad_error: "Não foi possível carregar o anúncio.",
     skip_phase: "Deseja pular a fase?",
     skip_via_ad: "📺 Pular com anúncio ({n} restantes)",
     no_skips_left: "Sem pulos disponíveis esta semana",
@@ -238,7 +252,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     tut_step1_title: "Conecte os pontos",    tut_step1_desc: "Clique em dois pontos adjacentes para traçar uma linha.",
     tut_step2_title: "Feche o quadrado",     tut_step2_desc: "Ao fechar o 4º lado de um quadrado você pontua e joga de novo.",
     tut_step3_title: "Marque mais pontos",   tut_step3_desc: "Vence quem fechar mais quadrados quando todas as linhas acabarem.",
-    tut_step4_title: "Cuidado com o bot",    tut_step4_desc: "Não deixe o 3º lado de um quadrado aberto — o bot vai completar!",
+    tut_step4_title: "Cuidado com a IA",     tut_step4_desc: "Não deixe o 3º lado de um quadrado aberto — a IA vai completar!",
     tut_hint: "Cada ponto conecta-se aos vizinhos. Um quadrado tem 4 lados.",
 
     ad_label: "ANÚNCIO",
@@ -264,7 +278,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     player_n: "Jogador {n}",
     you: "Você",
-    bot: "Bot",
+    bot: "IA",
 
     rank_master:     "Mestre",
     rank_diamond:    "Diamante",
@@ -290,6 +304,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     theme_dark: "🌙 Oscuro",
     theme_light: "☀️ Claro",
     theme_pink: "🌸 Rosa",
+    theme_confirm: "Confirmar tema",
     multiplatform: "Multiplataforma",
     profile: "Perfil",
     tagline: "Conecta • Cierra • Domina",
@@ -306,6 +321,8 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     energy_no: "⚡ ¡Sin energía! Espera la recarga o ve un anuncio.",
     energy_recharged: "⚡ ¡Energía recargada!",
+    energy_reward_5: "⚡ +{n} energía!",
+    energy_next: "+1 en {s}s",
     energy_unlimited: "∞",
 
     diff_muito_facil: "Muy Fácil",
@@ -326,9 +343,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     game_turn: "Turno de {name}",
     game_turn_you: "¡Tu turno!",
-    game_bot_thinking: "Bot pensando...",
+    game_bot_thinking: "IA pensando...",
     stage_label: "Fase {id}",
-    vs_bot_label: "vs Bot — {diff}",
+    vs_bot_label: "vs IA — {diff}",
     teams_2v2: "Parejas 2v2",
     n_players: "{n} Jugadores",
     team_a: "Equipo A",
@@ -346,7 +363,11 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     you_lost: "¡Perdiste!",
     you_tied: "🤝 ¡Empataste!",
     try_again: "⚡ Intentar de nuevo",
-    watch_ad: "📺 Ver anuncio",
+    watch_ad: "📺 Ver anuncio para ganar +{n} de energía",
+    ad_loading: "Cargando anuncio...",
+    ad_unavailable: "Anuncio no disponible por el momento. Inténtalo de nuevo en unos instantes.",
+    ad_not_completed: "Mira el anuncio hasta el final para recibir la recompensa.",
+    ad_error: "No fue posible cargar el anuncio.",
     skip_phase: "¿Deseas saltar la fase?",
     skip_via_ad: "📺 Saltar con anuncio ({n} restantes)",
     no_skips_left: "Sin saltos disponibles esta semana",
@@ -354,7 +375,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     tut_step1_title: "Conecta los puntos",   tut_step1_desc: "Haz clic en dos puntos adyacentes para trazar una línea.",
     tut_step2_title: "Cierra el cuadrado",   tut_step2_desc: "Al cerrar el 4º lado de un cuadrado puntúas y vuelves a jugar.",
     tut_step3_title: "Más puntos gana",      tut_step3_desc: "Gana quien cierre más cuadrados cuando no queden líneas.",
-    tut_step4_title: "Cuidado con el bot",   tut_step4_desc: "No dejes el 3er lado abierto — ¡el bot lo completará!",
+    tut_step4_title: "Cuidado con la IA",    tut_step4_desc: "No dejes el 3er lado abierto — ¡la IA lo completará!",
     tut_hint: "Cada punto se conecta a sus vecinos. Un cuadrado tiene 4 lados.",
 
     ad_label: "ANUNCIO",
@@ -380,7 +401,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     player_n: "Jugador {n}",
     you: "Tú",
-    bot: "Bot",
+    bot: "IA",
 
     rank_master:     "Maestro",
     rank_diamond:    "Diamante",
@@ -406,6 +427,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     theme_dark: "🌙 Dark",
     theme_light: "☀️ Light",
     theme_pink: "🌸 Pink",
+    theme_confirm: "Confirm theme",
     multiplatform: "Multiplatform",
     profile: "Profile",
     tagline: "Connect • Close • Dominate",
@@ -422,6 +444,8 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     energy_no: "⚡ No energy! Wait for recharge or watch an ad.",
     energy_recharged: "⚡ Energy recharged!",
+    energy_reward_5: "⚡ +{n} energy!",
+    energy_next: "+1 in {s}s",
     energy_unlimited: "∞",
 
     diff_muito_facil: "Very Easy",
@@ -442,9 +466,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     game_turn: "{name}'s turn",
     game_turn_you: "Your turn!",
-    game_bot_thinking: "Bot thinking...",
+    game_bot_thinking: "AI thinking...",
     stage_label: "Stage {id}",
-    vs_bot_label: "vs Bot — {diff}",
+    vs_bot_label: "vs AI — {diff}",
     teams_2v2: "Teams 2v2",
     n_players: "{n} Players",
     team_a: "Team A",
@@ -462,7 +486,11 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     you_lost: "You lost!",
     you_tied: "🤝 It's a Tie!",
     try_again: "⚡ Try Again",
-    watch_ad: "📺 Watch Ad",
+    watch_ad: "📺 Watch an ad to earn +{n} energy",
+    ad_loading: "Loading ad...",
+    ad_unavailable: "Ad unavailable right now. Please try again in a moment.",
+    ad_not_completed: "Watch until the end to receive the reward.",
+    ad_error: "Could not load the ad.",
     skip_phase: "Want to skip this stage?",
     skip_via_ad: "📺 Skip with ad ({n} left)",
     no_skips_left: "No skips available this week",
@@ -470,7 +498,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     tut_step1_title: "Connect the dots",     tut_step1_desc: "Click two adjacent dots to draw a line between them.",
     tut_step2_title: "Close the square",     tut_step2_desc: "Close the 4th side of a square to score and play again.",
     tut_step3_title: "Score the most",       tut_step3_desc: "The player who closes the most squares wins.",
-    tut_step4_title: "Watch the bot",        tut_step4_desc: "Don't leave the 3rd side open — the bot will complete it!",
+    tut_step4_title: "Watch the AI",         tut_step4_desc: "Don't leave the 3rd side open — the AI will complete it!",
     tut_hint: "Each dot connects to its neighbors. A square has 4 sides.",
 
     ad_label: "AD",
@@ -496,7 +524,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     player_n: "Player {n}",
     you: "You",
-    bot: "Bot",
+    bot: "AI",
 
     rank_master:     "Master",
     rank_diamond:    "Diamond",
