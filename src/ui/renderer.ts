@@ -1,18 +1,18 @@
 import { Dot, dotKey } from "../models/dot";
 import { GameState } from "../state/game-state";
 import { Line, lineKey } from "../models/line";
-
-const CELL = 80;
-const PAD = 50;
-const DOT_R = 7;
-const HIT = 24;
-export const TOUCH_HIT = 38;
+import {
+  BOARD_PADDING,
+  CELL_SIZE,
+  DOT_RADIUS,
+  HIT_RADIUS,
+} from "../config/game-constants";
 
 function dotX(col: number): number {
-  return PAD + col * CELL;
+  return BOARD_PADDING + col * CELL_SIZE;
 }
 function dotY(row: number): number {
-  return PAD + row * CELL;
+  return BOARD_PADDING + row * CELL_SIZE;
 }
 
 function cssVar(name: string, fallback: string): string {
@@ -61,8 +61,8 @@ function strokeSegment(
 }
 
 export function canvasSize(gridRows: number, gridCols = gridRows): { width: number; height: number } {
-  const width = PAD * 2 + (gridCols - 1) * CELL;
-  const height = PAD * 2 + (gridRows - 1) * CELL;
+  const width = BOARD_PADDING * 2 + (gridCols - 1) * CELL_SIZE;
+  const height = BOARD_PADDING * 2 + (gridRows - 1) * CELL_SIZE;
   return { width, height };
 }
 
@@ -86,18 +86,18 @@ export function render(
     const y = dotY(box.topLeft.row);
 
     ctx.fillStyle = color + "33";
-    ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+    ctx.fillRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2);
 
     const player = state.players.find((p) => p.id === box.ownerId);
     if (player) {
       ctx.fillStyle = color + "bb";
-      ctx.font = `bold ${Math.floor(CELL * 0.35)}px system-ui, sans-serif`;
+      ctx.font = `bold ${Math.floor(CELL_SIZE * 0.35)}px system-ui, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(
         player.name[0]?.toUpperCase() ?? "?",
-        x + CELL / 2,
-        y + CELL / 2,
+        x + CELL_SIZE / 2,
+        y + CELL_SIZE / 2,
       );
     }
   }
@@ -124,7 +124,7 @@ export function render(
 
   for (const point of collectDots(state)) {
     ctx.beginPath();
-    ctx.arc(dotX(point.col), dotY(point.row), DOT_R, 0, Math.PI * 2);
+    ctx.arc(dotX(point.col), dotY(point.row), DOT_RADIUS, 0, Math.PI * 2);
     ctx.fillStyle = palette.dot;
     ctx.fill();
   }
@@ -134,7 +134,7 @@ export function findLineAtPoint(
   state: GameState,
   x: number,
   y: number,
-  hitRadius = HIT,
+  hitRadius = HIT_RADIUS,
 ): Line | null {
   let closest: Line | null = null;
   let minDist = hitRadius;

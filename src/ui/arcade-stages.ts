@@ -1,5 +1,8 @@
 import { BotDifficulty } from "./bot";
 import { t } from "./i18n";
+import { INITIAL_STAGES, TOTAL_STAGES } from "../config/game-constants";
+
+export { INITIAL_STAGES, TOTAL_STAGES } from "../config/game-constants";
 
 export interface ActiveCell {
   readonly x: number;
@@ -93,9 +96,6 @@ const RAW_BOARD_TEMPLATES = [
 ] as const;
 
 export const BOARD_TEMPLATES: readonly BoardTemplate[] = RAW_BOARD_TEMPLATES.map(normalizeTemplate);
-
-export const TOTAL_STAGES = 60;
-export const INITIAL_STAGES = 60;
 
 const STAGES: readonly Stage[] = Array.from({ length: TOTAL_STAGES }, (_, index) =>
   buildStage(index + 1),

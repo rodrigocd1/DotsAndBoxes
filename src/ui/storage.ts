@@ -1,9 +1,11 @@
 /** Persistência em localStorage — progresso, rank, energia, god mode, tema, pulos */
+import { ENERGY_REGEN_MINUTES, MAX_ENERGY as MAX_ENERGY_CONFIG, SKIPS_PER_WEEK as SKIPS_PER_WEEK_CONFIG } from "../config/game-constants";
 import { t } from "./i18n";
 
 // ── Pulos de fase (skip semanal) ──────────────────────────────────────────
-export const SKIPS_PER_WEEK = 3;
 const SKIPS_KEY = "dab_skips";
+export const SKIPS_PER_WEEK = SKIPS_PER_WEEK_CONFIG;
+export const MAX_ENERGY = MAX_ENERGY_CONFIG;
 interface SkipData { count: number; weekStart: number; }
 
 function getWeekStart(): number {
@@ -71,8 +73,11 @@ export function saveVibration(on: boolean): void {
 export function vibrate(pattern: number | number[]): void {
   if (!loadVibration()) return;
   try {
-    if (typeof window !== "undefined" && window.navigator?.vibrate) {
-      window.navigator.vibrate(pattern);
+    const nav = globalThis as typeof globalThis & {
+      navigator?: { vibrate?: (value: number | number[]) => void };
+    };
+    if (nav.navigator?.vibrate) {
+      nav.navigator.vibrate(pattern);
     }
   } catch {}
 }
@@ -95,7 +100,10 @@ export function saveTheme(theme: Theme): void {
   applyTheme(theme);
 }
 export function applyTheme(theme: Theme = loadTheme()): void {
-  document.documentElement.setAttribute("data-theme", theme);
+  const doc = globalThis as typeof globalThis & {
+    document?: { documentElement?: { setAttribute(name: string, value: string): void } };
+  };
+  doc.document?.documentElement?.setAttribute("data-theme", theme);
 }
 
 const THEME_PLAYER_COLORS: Record<Theme, readonly [string, string, string, string]> = {
@@ -182,8 +190,7 @@ export function rankLabel(xp: number): { rank: string; icon: string; next: numbe
 
 // ── Sistema de Energia ────────────────────────────────────────────────────
 
-export const MAX_ENERGY = 10;
-const REGEN_MS = 60_000; // 1 energia por minuto
+const ENERGY_REGEN_INTERVAL_MS = Math.round(ENERGY_REGEN_MINUTES * 60_000);
 
 interface EnergyState {
   amount: number;
@@ -197,7 +204,7 @@ export function loadEnergy(): number {
     const raw = localStorage.getItem(ENERGY_KEY);
     if (!raw) return MAX_ENERGY;
     const s = JSON.parse(raw) as EnergyState;
-    const regained = Math.floor((Date.now() - s.lastSaved) / REGEN_MS);
+    const regained = Math.floor((Date.now() - s.lastSaved) / ENERGY_REGEN_INTERVAL_MS);
     return Math.min(MAX_ENERGY, s.amount + regained);
   } catch {
     return MAX_ENERGY;
@@ -230,7 +237,7 @@ export function msToNextEnergy(): number {
     if (!raw) return 0;
     const s = JSON.parse(raw) as EnergyState;
     if (loadEnergy() >= MAX_ENERGY) return 0;
-    return REGEN_MS - ((Date.now() - s.lastSaved) % REGEN_MS);
+    return ENERGY_REGEN_INTERVAL_MS - ((Date.now() - s.lastSaved) % ENERGY_REGEN_INTERVAL_MS);
   } catch {
     return 0;
   }

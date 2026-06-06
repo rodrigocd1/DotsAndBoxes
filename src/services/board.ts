@@ -3,8 +3,9 @@ import { dot, Dot } from "../models/dot";
 import { Line, lineKey, makeLine } from "../models/line";
 import { Player } from "../models/player";
 import { GameState } from "../state/game-state";
+import { MIN_GRID_SIZE } from "../config/game-constants";
 
-export const MIN_GRID_SIZE = 2;
+export { MIN_GRID_SIZE } from "../config/game-constants";
 
 export interface BoardCell {
   readonly x: number;

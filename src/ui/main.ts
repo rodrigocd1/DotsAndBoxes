@@ -1,21 +1,28 @@
 import { GameController, GameConfig } from "./controller";
-import { render, canvasSize, findLineAtPoint, TOUCH_HIT } from "./renderer";
+import { render, canvasSize, findLineAtPoint } from "./renderer";
 import { chooseBotMove, botThinkDelay, BotDifficulty, BOT_DIFFICULTIES, getDiffLabel } from "./bot";
-import { calculateStars, getDifficultyLabel, getStage, getStageTitle, INITIAL_STAGES, isDifficultyIntroStage } from "./arcade-stages";
+import { calculateStars, getDifficultyLabel, getStage, getStageTitle, isDifficultyIntroStage } from "./arcade-stages";
+import {
+  ENERGY_REWARD_AMOUNT,
+  INITIAL_STAGES,
+  MAX_ENERGY,
+  SKIPS_PER_WEEK,
+  TOUCH_HIT_RADIUS as TOUCH_HIT,
+  VERSION,
+} from "../config/game-constants";
 import {
   loadProfile, recordStageResult, rankLabel,
-  loadEnergy, spendEnergy, refillEnergy, saveEnergy, MAX_ENERGY, msToNextEnergy,
+  loadEnergy, spendEnergy, refillEnergy, saveEnergy, msToNextEnergy,
   addEnergy,
   loadGodMode, saveGodMode, GodModeConfig,
   loadTheme, saveTheme, applyTheme, Theme,
   getThemePlayerColors,
-  getAvailableSkips, useSkip, setSkipCount, SKIPS_PER_WEEK,
+  getAvailableSkips, useSkip, setSkipCount,
   loadVibration, saveVibration, vibrate,
   loadMusicVolume, saveMusicVolume,
   loadMute, saveMute,
 } from "./storage";
 import {
-  ENERGY_REWARD_AMOUNT,
   REWARDED_AD_STATUS,
   initializeAdMob,
   showRewardedEnergyAd,
@@ -61,7 +68,6 @@ const ICO_RESTART     = tablerSvg(THEME_ICON_SIZE,   `<path d="M20 11a8 8 0 1 0 
 //   Formato: v{major}.{minor}.{patch}
 //   Exemplos: v0.1.98 → v0.1.99 → v0.2.0 → v0.2.1
 //   NUNCA alterar major sem decisão explícita do responsável pelo projeto.
-const VERSION = "v0.01.51";
 
 // ── Estado global ─────────────────────────────────────────────────────────
 interface GameSession {
