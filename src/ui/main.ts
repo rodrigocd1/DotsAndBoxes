@@ -37,6 +37,7 @@ import {
   MASTER_TIP_UNLOCK_STAGE, TACTICAL_RADAR_UNLOCK_STAGE,
 } from "../services/powerSystem";
 import { calculateXp } from "../services/xpSystem";
+import { createLabReport } from "../services/labReport";
 import {
   NERVES_OF_STEEL_MOVE_TIME_SECONDS, NERVES_OF_STEEL_VIP_EXTRA_TIME_SECONDS,
   TIMER_ATTACK_UNLOCK_STAGE, RANKED_UNLOCK_STAGE, NERVES_OF_STEEL_UNLOCK_STAGE,
@@ -71,6 +72,7 @@ const THEME_ICON_SIZE = 16;
 const ICO_MOON_STARS  = tablerSvg(THEME_ICON_SIZE,   `<path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1-8.313-12.454l0 .008"/><path d="M17 4a2 2 0 0 0 2 2a2 2 0 0 0-2 2a2 2 0 0 0-2-2a2 2 0 0 0 2-2"/><path d="M19 11h2m-1-1v2"/>`);
 const ICO_SUN         = tablerSvgFilled(THEME_ICON_SIZE, `<path d="M12 19a1 1 0 0 1 .993 .883l.007 .117v1a1 1 0 0 1-1.993 .117l-.007-.117v-1a1 1 0 0 1 1-1z"/><path d="M18.313 16.91l.094 .083l.7 .7a1 1 0 0 1-1.32 1.497l-.094-.083l-.7-.7a1 1 0 0 1 1.218-1.567l.102 .07z"/><path d="M7.007 16.993a1 1 0 0 1 .083 1.32l-.083 .094l-.7 .7a1 1 0 0 1-1.497-1.32l.083-.094l.7-.7a1 1 0 0 1 1.414 0z"/><path d="M4 11a1 1 0 0 1 .117 1.993l-.117 .007h-1a1 1 0 0 1-.117-1.993l.117-.007h1z"/><path d="M21 11a1 1 0 0 1 .117 1.993l-.117 .007h-1a1 1 0 0 1-.117-1.993l.117-.007h1z"/><path d="M6.213 4.81l.094 .083l.7 .7a1 1 0 0 1-1.32 1.497l-.094-.083l-.7-.7a1 1 0 0 1 1.217-1.567l.102 .07z"/><path d="M19.107 4.893a1 1 0 0 1 .083 1.32l-.083 .094l-.7 .7a1 1 0 0 1-1.497-1.32l.083-.094l.7-.7a1 1 0 0 1 1.414 0z"/><path d="M12 2a1 1 0 0 1 .993 .883l.007 .117v1a1 1 0 0 1-1.993 .117l-.007-.117v-1a1 1 0 0 1 1-1z"/><path d="M12 7a5 5 0 1 1-4.995 5.217l-.005-.217l.005-.217a5 5 0 0 1 4.995-4.783z"/>`);
 const ICO_SETTINGS    = tablerSvgFilled(THEME_ICON_SIZE, `<path d="M14.647 4.081a.724 .724 0 0 0 1.08 .448c2.439 -1.485 5.23 1.305 3.745 3.744a.724 .724 0 0 0 .447 1.08c2.775 .673 2.775 4.62 0 5.294a.724 .724 0 0 0 -.448 1.08c1.485 2.439 -1.305 5.23 -3.744 3.745a.724 .724 0 0 0 -1.08 .447c-.673 2.775 -4.62 2.775 -5.294 0a.724 .724 0 0 0 -1.08 -.448c-2.439 1.485 -5.23 -1.305 -3.745 -3.744a.724 .724 0 0 0 -.447 -1.08c-2.775 -.673 -2.775 -4.62 0 -5.294a.724 .724 0 0 0 .448 -1.08c-1.485 -2.439 1.305 -5.23 3.744 -3.745a.722 .722 0 0 0 1.08 -.447c.673 -2.775 4.62 -2.775 5.294 0zm-2.647 4.919a3 3 0 1 0 0 6a3 3 0 0 0 0 -6"/>`);
+const ICO_LAB         = tablerSvg(24, `<path d="M8 3v5.4l-5 8.6h14l-5-8.6v-5.4"/><path d="M8 3h8"/><path d="M10 12l-2 3"/>`);
 const ICO_VIBRATION   = tablerSvg(THEME_ICON_SIZE,   `<path d="M3 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -14"/><path d="M8 4l2 0"/><path d="M9 17l0 .01"/><path d="M21 6l-2 3l2 3l-2 3l2 3"/>`);
 const ICO_TROPHY      = tablerSvg(24, `<path d="M8 21l8 0"/><path d="M12 17l0 4"/><path d="M7 4l10 0"/><path d="M17 4v8a5 5 0 0 1 -10 0v-8"/><path d="M3 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M17 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>`);
 const ICO_SWORDS      = tablerSvg(24, `<path d="M21 3v5l-11 9l-4 4l-3 -3l4 -4l9 -11l5 0"/><path d="M5 13l6 6"/><path d="M14.32 17.32l3.68 3.68l3 -3l-3.365 -3.365"/><path d="M10 5.5l-2 -2.5h-5v5l3 2.5"/>`);
@@ -88,7 +90,7 @@ const ICO_RESTART     = tablerSvg(THEME_ICON_SIZE,   `<path d="M20 11a8 8 0 1 0 
 
 // ── Estado global ─────────────────────────────────────────────────────────
 interface GameSession {
-  mode: "arcade" | "vs-bot" | "multi";
+  mode: "arcade" | "vs-bot" | "multi" | "lab";
   stageId?: number;
   botDifficulty?: BotDifficulty;
   playerCount?: number;
@@ -1122,6 +1124,14 @@ function showMenu() {
 
         ${langSelectorHTML()}
 
+        <button class="btn-menu btn-lab" id="btn-lab">
+          <div class="btn-menu-icon-wrap btn-icon--lab">${ICO_LAB}</div>
+          <div class="btn-menu-text">
+            <strong>${t("menu_lab")}</strong>
+            <small>${t("menu_lab_sub")}</small>
+          </div>
+        </button>
+
         <button class="btn-menu btn-tutorial" id="btn-tutorial">
           <div class="btn-menu-icon-wrap btn-icon--tutorial">${ICO_BOOK}</div>
           <div class="btn-menu-text">
@@ -1147,6 +1157,7 @@ function showMenu() {
   document.getElementById("btn-arcade")!.onclick   = showArcadeMap;
   document.getElementById("btn-bot")!.onclick      = showBotSetup;
   document.getElementById("btn-multi")!.onclick    = showMultiSetup;
+  document.getElementById("btn-lab")!.onclick       = showLabScreen;
   document.getElementById("btn-tutorial")!.onclick = showTutorial;
   document.getElementById("btn-settings")!.onclick = showSettings;
   document.getElementById("btn-profile")?.addEventListener("click", () => showToast("👤 " + t("profile") + " — em breve!"));
@@ -1221,6 +1232,153 @@ const DIFF_META: Record<BotDifficulty, { icon: string; tier: "easy" | "hard" | "
 function dotGridHTML(n: number): string {
   const dots = Array.from({ length: n * n }, () => `<span class="dot-preview"></span>`).join("");
   return `<div class="dot-grid-preview" style="grid-template-columns:repeat(${n},1fr)">${dots}</div>`;
+}
+
+// ── LABORATÓRIO DE TESTE ──────────────────────────────────────────────────
+const LAB_DAILY_KEY = "dab_lab_daily";
+const LAB_MAX_REWARDS_PER_DAY = 3;
+
+function getLabDailyCount(): number {
+  try {
+    const raw = localStorage.getItem(LAB_DAILY_KEY);
+    if (!raw) return 0;
+    const d = JSON.parse(raw) as { date: string; count: number };
+    const today = new Date().toISOString().slice(0, 10);
+    return d.date === today ? d.count : 0;
+  } catch { return 0; }
+}
+
+function incrementLabDailyCount(): void {
+  const today = new Date().toISOString().slice(0, 10);
+  const count = getLabDailyCount() + 1;
+  localStorage.setItem(LAB_DAILY_KEY, JSON.stringify({ date: today, count }));
+}
+
+function showLabFeedback(
+  result: "won" | "lost" | "tie",
+  diff: BotDifficulty,
+  gridSize: number,
+  onDone: () => void,
+): void {
+  const dailyCount = getLabDailyCount();
+  const canEarn = dailyCount < LAB_MAX_REWARDS_PER_DAY;
+  const ov = document.createElement("div");
+  ov.className = "modal-overlay";
+  ov.innerHTML = `
+    <div class="modal-card lab-feedback-card">
+      <div class="lab-fb-result ${result === "won" ? "lab-fb-result--won" : result === "tie" ? "lab-fb-result--tie" : "lab-fb-result--lost"}">
+        ${result === "won" ? t("lab_result_won") : result === "tie" ? t("lab_result_tie") : t("lab_result_lost")}
+      </div>
+      <div class="lab-fb-title">${t("lab_feedback_title")}</div>
+      <div class="lab-fb-stars" id="lab-stars">
+        ${[1,2,3,4,5].map(n => `<button class="lab-star-btn" data-star="${n}">★</button>`).join("")}
+      </div>
+      <textarea class="lab-comment" id="lab-comment" placeholder="${t("lab_comment_placeholder")}" rows="2" maxlength="280"></textarea>
+      ${canEarn
+        ? `<div class="lab-fb-energy">${t("lab_feedback_energy")}</div>`
+        : `<div class="lab-fb-limit">${t("lab_daily_limit")}</div>`}
+      <div class="lab-fb-actions">
+        <button class="btn-lab-send" id="lab-send">${t("lab_feedback_send")}</button>
+        <button class="btn-lab-skip" id="lab-skip">${t("lab_feedback_skip")}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  let stars = 0;
+  ov.querySelectorAll<HTMLButtonElement>(".lab-star-btn").forEach((b, i) => {
+    b.addEventListener("click", () => {
+      stars = parseInt(b.dataset["star"]!, 10);
+      ov.querySelectorAll(".lab-star-btn").forEach((x, j) =>
+        x.classList.toggle("lab-star--active", j < stars));
+    });
+  });
+
+  const submit = (skip: boolean) => {
+    if (!skip && stars === 0) { showToast(t("lab_feedback_stars")); return; }
+    const comment = (ov.querySelector<HTMLTextAreaElement>("#lab-comment")?.value ?? "").trim();
+    // Salvar relatório local (TODO: sync Salesforce via queue em getUnsyncedReports)
+    createLabReport({
+      mode: "lab", stageId: null,
+      boardSize: `${gridSize}x${gridSize}`, difficulty: diff,
+      avgBotTimeMs: 0, maxBotTimeMs: 0, result,
+      score: "", durationMs: 0,
+      powersUsed: [], tipsUsed: 0, radarUsed: 0, freezeAiUsed: 0,
+      feedbackStars: skip ? null : stars,
+      feedbackComment: comment,
+      funRating: null, difficultyRating: null, fairnessRating: null,
+    });
+    if (!skip && canEarn) {
+      saveEnergy(loadEnergy() + 1); // pode ultrapassar MAX
+      incrementLabDailyCount();
+      showToast(t("lab_energy_earned"));
+    }
+    ov.remove();
+    onDone();
+  };
+
+  ov.querySelector("#lab-send")?.addEventListener("click", () => submit(false));
+  ov.querySelector("#lab-skip")?.addEventListener("click", () => submit(true));
+}
+
+function startLabGame(difficulty: BotDifficulty, gridSize: number) {
+  const palette = getThemePlayerColors();
+  session = {
+    mode: "lab", botDifficulty: difficulty,
+    controller: new GameController({
+      gridSize,
+      players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }],
+    }),
+    botPlayerId: "p2", botThinking: false, freeRetry: false, finishShown: false,
+  };
+  showGame();
+}
+
+function showLabScreen(): void {
+  stopEnergyTimer();
+  app.innerHTML = `
+    <div class="screen setup-screen">
+      <div class="screen-header">
+        <button class="btn-back" id="btn-back">${t("back")}</button>
+        <h2>${sectionTitle(ICO_LAB, t("menu_lab"))}</h2>
+        <span class="header-end-spacer"></span>
+      </div>
+      <div class="lab-daily-bar">
+        <span class="lab-daily-label">${t("lab_daily_rewards", { n: getLabDailyCount(), max: LAB_MAX_REWARDS_PER_DAY })}</span>
+      </div>
+      <div class="setup-section">
+        <label class="setup-label">${t("setup_difficulty")}</label>
+        <div class="diff-grid">${BOT_DIFFICULTIES.map((k) => {
+          const m = DIFF_META[k];
+          return `<button class="btn-diff btn-diff--${m.tier}" data-diff="${k}"><span class="diff-icon">${m.icon}</span>${getDiffLabel(k)}</button>`;
+        }).join("")}</div>
+      </div>
+      <div class="setup-section">
+        <label class="setup-label">${t("setup_grid")}</label>
+        <div class="grid-size-row">${[3,4,5,6].map(n =>
+          `<button class="btn-grid-size" data-size="${n}"><span class="grid-size-label">${n}×${n}</span>${dotGridHTML(n)}</button>`
+        ).join("")}</div>
+      </div>
+      <div class="lab-hint">${t("lab_hint")}</div>
+      <button class="btn-start" id="btn-start" disabled>${t("setup_start")}</button>
+    </div>`;
+
+  document.getElementById("btn-back")!.onclick = showMenu;
+  let diff: BotDifficulty | null = null; let sz = 4;
+  (document.querySelector(`[data-size="4"]`) as HTMLElement).classList.add("selected");
+  document.querySelectorAll(".btn-diff").forEach((b) => {
+    (b as HTMLElement).onclick = () => {
+      document.querySelectorAll(".btn-diff").forEach((x) => x.classList.remove("selected"));
+      b.classList.add("selected"); diff = (b as HTMLElement).dataset["diff"] as BotDifficulty;
+      (document.getElementById("btn-start") as HTMLButtonElement).disabled = false;
+    };
+  });
+  document.querySelectorAll(".btn-grid-size").forEach((b) => {
+    (b as HTMLElement).onclick = () => {
+      document.querySelectorAll(".btn-grid-size").forEach((x) => x.classList.remove("selected"));
+      b.classList.add("selected"); sz = parseInt((b as HTMLElement).dataset["size"]!, 10);
+    };
+  });
+  document.getElementById("btn-start")!.onclick = () => { if (diff) startLabGame(diff, sz); };
 }
 
 // ── TELAS PLACEHOLDER DE MODOS COMPETITIVOS ───────────────────────────────
@@ -1507,6 +1665,8 @@ function showGame() {
     ? sectionTitle(ICO_STAR, getStageTitle(getStage(s.stageId!)))
     : s.mode === "vs-bot"
     ? sectionTitle(ICO_BARBELL, `${t("menu_bot")} · ${getDiffLabel(s.botDifficulty!)}`)
+    : s.mode === "lab"
+    ? sectionTitle(ICO_LAB, `${t("menu_lab")} · ${getDiffLabel(s.botDifficulty!)}`)
     : sectionTitle(ICO_USERS, s.teamMode ? t("teams_2v2") : t("n_players", { n: s.playerCount! }));
 
   app.innerHTML = `
@@ -1516,13 +1676,13 @@ function showGame() {
           <button class="btn-back" id="btn-back">${t("back")}</button>
           <h2>${modeTitle}</h2>
           <div class="game-header-actions">
-            ${s.mode === "vs-bot" ? `<button class="btn-restart-corner" id="btn-restart-game" title="${t("restart")}" aria-label="${t("restart")}">${ICO_RESTART}</button>` : `<span class="header-end-spacer"></span>`}
+            ${(s.mode === "vs-bot" || s.mode === "lab") ? `<button class="btn-restart-corner" id="btn-restart-game" title="${t("restart")}" aria-label="${t("restart")}">${ICO_RESTART}</button>` : `<span class="header-end-spacer"></span>`}
             <button class="btn-god-corner" id="btn-god-game" title="${t("god_mode")}" aria-label="${t("god_mode")}">👑</button>
           </div>
         </div>
         <div id="scoreboard" class="scoreboard"></div>
         <div id="status" class="status"></div>
-        ${s.mode === "vs-bot" ? powerBarHTML() : ""}
+        ${(s.mode === "vs-bot" || s.mode === "lab") ? powerBarHTML() : ""}
         ${s.mode === "arcade" ? `<div id="energy-display" class="game-energy-display">${energyHTML()}</div>` : ""}
       </div>
       <div class="canvas-wrapper"><canvas id="board"></canvas></div>
@@ -1530,16 +1690,20 @@ function showGame() {
 
   document.getElementById("btn-back")!.onclick = () => {
     session = null; hoverLine = null;
-    if (s.mode === "arcade") showArcadeMap(); else if (s.mode === "vs-bot") showBotSetup(); else showMultiSetup();
+    if (s.mode === "arcade") showArcadeMap();
+    else if (s.mode === "vs-bot") showBotSetup();
+    else if (s.mode === "lab") showLabScreen();
+    else showMultiSetup();
   };
   document.getElementById("btn-restart-game")?.addEventListener("click", () => {
-    if (s.mode !== "vs-bot") return;
+    if (s.mode !== "vs-bot" && s.mode !== "lab") return;
     const st = s.controller.getState();
     hoverLine = null;
-    startBotGame(s.botDifficulty!, st.gridSize);
+    if (s.mode === "lab") startLabGame(s.botDifficulty!, st.gridSize);
+    else startBotGame(s.botDifficulty!, st.gridSize);
   });
   document.getElementById("btn-god-game")?.addEventListener("click", () => showGodModeModal(s.stageId));
-  if (s.mode === "vs-bot") bindPowerBar();
+  if (s.mode === "vs-bot" || s.mode === "lab") bindPowerBar();
 
   const canvas = document.getElementById("board") as HTMLCanvasElement;
   const ctx = canvas.getContext("2d")!;
@@ -1617,6 +1781,11 @@ function showGame() {
         } : undefined;
         showFailBanner(retryFn, mapFn, tied, skipInfo);
       }
+    } else if (s.mode === "lab") {
+      const you  = st.players.find((p)=>p.id!==s.botPlayerId)!;
+      const bot2 = st.players.find((p)=>p.id===s.botPlayerId)!;
+      const result: "won"|"lost"|"tie" = you.score === bot2.score ? "tie" : you.score > bot2.score ? "won" : "lost";
+      showLabFeedback(result, s.botDifficulty!, st.gridSize, showLabScreen);
     } else if (s.mode === "vs-bot") {
       const you  = st.players.find((p)=>p.id!==s.botPlayerId)!;
       const bot2 = st.players.find((p)=>p.id===s.botPlayerId)!;
@@ -2963,6 +3132,40 @@ html[data-theme="pink"] #btn-mode-ranked .btn-menu-icon-wrap,
 html[data-theme="pink"] #btn-mode-timer-attack .btn-menu-icon-wrap,
 html[data-theme="pink"] #btn-mode-nerves .btn-menu-icon-wrap,
 html[data-theme="pink"] #btn-mode-x1 .btn-menu-icon-wrap { background: var(--ui-accent-soft); border-color: var(--ui-accent-border); color: var(--ui-accent); }
+
+/* ── LABORATÓRIO DE TESTE ────────────────────────────── */
+.btn-lab {
+  background: rgba(0,0,0,.82); border: 1.5px solid rgba(20,184,166,.5);
+  box-shadow: 0 0 14px rgba(20,184,166,.12);
+}
+.btn-lab:hover { border-color: #14b8a6; background: rgba(0,0,0,.9); box-shadow: 0 0 22px rgba(20,184,166,.22); }
+.btn-icon--lab { background: rgba(20,184,166,.14); border: 1.5px solid rgba(20,184,166,.5); }
+html[data-theme="light"] .btn-lab { background: #e8dcc8; border-color: var(--ui-accent-border); box-shadow: 0 0 14px rgba(245,158,11,.12); }
+html[data-theme="light"] .btn-lab:hover { background: #d4c4a8; border-color: var(--ui-accent); }
+html[data-theme="light"] .btn-icon--lab { background: var(--ui-accent-soft); border-color: var(--ui-accent-border); color: var(--ui-accent); }
+html[data-theme="pink"] .btn-lab { background: #fbcfe8; border-color: var(--ui-accent-border); box-shadow: 0 0 14px rgba(236,72,153,.12); }
+html[data-theme="pink"] .btn-lab:hover { background: #f9a8d4; border-color: var(--ui-accent); }
+html[data-theme="pink"] .btn-icon--lab { background: var(--ui-accent-soft); border-color: var(--ui-accent-border); color: var(--ui-accent); }
+.lab-daily-bar { display: flex; justify-content: flex-end; padding: 4px 16px 0; }
+.lab-daily-label { font-size: .75rem; color: var(--text-3); font-weight: 600; }
+.lab-hint { font-size: .8rem; color: var(--text-2); text-align: center; padding: 0 16px 4px; line-height: 1.4; }
+.lab-feedback-card { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px 24px; min-width: 280px; text-align: center; }
+.lab-fb-result { font-size: 1.3rem; font-weight: 900; }
+.lab-fb-result--won { color: #2ecc71; }
+.lab-fb-result--lost { color: var(--text-2); }
+.lab-fb-result--tie { color: #f39c12; }
+.lab-fb-title { font-size: 1rem; font-weight: 800; color: var(--text); }
+.lab-fb-energy { font-size: .82rem; color: #14b8a6; font-weight: 700; }
+.lab-fb-limit { font-size: .78rem; color: var(--text-3); font-weight: 600; }
+.lab-fb-stars { display: flex; gap: 8px; }
+.lab-star-btn { font-size: 1.8rem; background: none; border: none; color: var(--text-3); cursor: pointer; transition: color .1s, transform .1s; padding: 0; line-height: 1; }
+.lab-star-btn:hover { color: #f39c12; transform: scale(1.15); }
+.lab-star--active { color: #f39c12; }
+.lab-comment { width: 100%; background: var(--bg-3); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: .85rem; padding: 8px 10px; resize: none; font-family: inherit; }
+.lab-fb-actions { display: flex; gap: 10px; width: 100%; }
+.btn-lab-send { flex: 1; background: #14b8a6; border: none; border-radius: 10px; padding: 11px 0; color: #fff; font-weight: 700; font-size: .9rem; cursor: pointer; transition: opacity .15s; }
+.btn-lab-send:hover { opacity: .85; }
+.btn-lab-skip { flex: 0 0 auto; background: var(--bg-3); border: 1px solid var(--border-strong); border-radius: 10px; padding: 11px 16px; color: var(--text-2); font-weight: 600; font-size: .9rem; cursor: pointer; }
 
 /* ── TELAS MODOS (C8-C11) ────────────────────────────── */
 .mode-info-card { display: flex; flex-direction: column; gap: 10px; margin: 12px 16px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }

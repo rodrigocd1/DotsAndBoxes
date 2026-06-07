@@ -191,6 +191,23 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     rank_bronze_1:   "Bronze I",
     rank_beginner:   "Iniciante",
 
+    // Laboratório
+    menu_lab: "Laboratório de Teste",
+    menu_lab_sub: "Sempre ativo · ganhe energia com feedback",
+    lab_hint: "Jogue e avalie a experiência. Cada feedback vale +1 energia.",
+    lab_daily_rewards: "{n}/{max} recompensas hoje",
+    lab_feedback_title: "Como foi a partida?",
+    lab_feedback_energy: "Deixe seu feedback e ganhe +1 energia.",
+    lab_feedback_send: "Enviar",
+    lab_feedback_skip: "Pular",
+    lab_daily_limit: "Limite diário atingido (3/3). Obrigado!",
+    lab_energy_earned: "+1 energia! Obrigado pelo feedback.",
+    lab_comment_placeholder: "Comentário opcional...",
+    lab_result_won: "Você venceu! 🎉",
+    lab_result_lost: "Fim de jogo.",
+    lab_result_tie: "Empate!",
+    lab_feedback_stars: "Selecione pelo menos 1 estrela.",
+
     // Treino
     training_basic: "Treino Básico",
     training_basic_sub: "Grades simples · poderes permitidos",
@@ -396,6 +413,23 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     rank_bronze_2:   "Bronze II",
     rank_bronze_1:   "Bronze I",
     rank_beginner:   "Iniciante",
+
+    // Laboratório
+    menu_lab: "Laboratório de Teste",
+    menu_lab_sub: "Sempre ativo · ganhe energia com feedback",
+    lab_hint: "Jogue e avalie a experiência. Cada feedback vale +1 energia.",
+    lab_daily_rewards: "{n}/{max} recompensas hoje",
+    lab_feedback_title: "Como foi a partida?",
+    lab_feedback_energy: "Deixe o seu feedback e ganhe +1 energia.",
+    lab_feedback_send: "Enviar",
+    lab_feedback_skip: "Pular",
+    lab_daily_limit: "Limite diário atingido (3/3). Obrigado!",
+    lab_energy_earned: "+1 energia! Obrigado pelo feedback.",
+    lab_comment_placeholder: "Comentário opcional...",
+    lab_result_won: "Você venceu! 🎉",
+    lab_result_lost: "Fim de jogo.",
+    lab_result_tie: "Empate!",
+    lab_feedback_stars: "Selecione pelo menos 1 estrela.",
 
     // Treino
     training_basic: "Treino Básico",
@@ -603,6 +637,23 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     rank_bronze_1:   "Bronce I",
     rank_beginner:   "Principiante",
 
+    // Laboratorio
+    menu_lab: "Laboratorio de Prueba",
+    menu_lab_sub: "Siempre activo · gana energía con feedback",
+    lab_hint: "Juega y evalúa la experiencia. Cada feedback vale +1 energía.",
+    lab_daily_rewards: "{n}/{max} recompensas hoy",
+    lab_feedback_title: "¿Cómo fue la partida?",
+    lab_feedback_energy: "Deja tu feedback y gana +1 energía.",
+    lab_feedback_send: "Enviar",
+    lab_feedback_skip: "Omitir",
+    lab_daily_limit: "Límite diario alcanzado (3/3). ¡Gracias!",
+    lab_energy_earned: "+1 energía. ¡Gracias por tu feedback!",
+    lab_comment_placeholder: "Comentario opcional...",
+    lab_result_won: "¡Ganaste! 🎉",
+    lab_result_lost: "Fin del juego.",
+    lab_result_tie: "¡Empate!",
+    lab_feedback_stars: "Selecciona al menos 1 estrella.",
+
     // Entrenamiento
     training_basic: "Entrenamiento Básico",
     training_basic_sub: "Cuadrículas simples · poderes permitidos",
@@ -808,6 +859,23 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     rank_bronze_2:   "Bronze II",
     rank_bronze_1:   "Bronze I",
     rank_beginner:   "Beginner",
+
+    // Lab
+    menu_lab: "Test Lab",
+    menu_lab_sub: "Always active · earn energy with feedback",
+    lab_hint: "Play and rate the experience. Each feedback earns +1 energy.",
+    lab_daily_rewards: "{n}/{max} rewards today",
+    lab_feedback_title: "How was the match?",
+    lab_feedback_energy: "Leave your feedback and earn +1 energy.",
+    lab_feedback_send: "Submit",
+    lab_feedback_skip: "Skip",
+    lab_daily_limit: "Daily limit reached (3/3). Thank you!",
+    lab_energy_earned: "+1 energy! Thanks for the feedback.",
+    lab_comment_placeholder: "Optional comment...",
+    lab_result_won: "You won! 🎉",
+    lab_result_lost: "Game over.",
+    lab_result_tie: "It's a tie!",
+    lab_feedback_stars: "Please select at least 1 star.",
 
     // Training
     training_basic: "Basic Training",
