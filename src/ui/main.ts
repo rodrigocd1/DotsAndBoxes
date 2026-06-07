@@ -72,6 +72,10 @@ const ICO_MOON_STARS  = tablerSvg(THEME_ICON_SIZE,   `<path d="M12 3c.132 0 .263
 const ICO_SUN         = tablerSvgFilled(THEME_ICON_SIZE, `<path d="M12 19a1 1 0 0 1 .993 .883l.007 .117v1a1 1 0 0 1-1.993 .117l-.007-.117v-1a1 1 0 0 1 1-1z"/><path d="M18.313 16.91l.094 .083l.7 .7a1 1 0 0 1-1.32 1.497l-.094-.083l-.7-.7a1 1 0 0 1 1.218-1.567l.102 .07z"/><path d="M7.007 16.993a1 1 0 0 1 .083 1.32l-.083 .094l-.7 .7a1 1 0 0 1-1.497-1.32l.083-.094l.7-.7a1 1 0 0 1 1.414 0z"/><path d="M4 11a1 1 0 0 1 .117 1.993l-.117 .007h-1a1 1 0 0 1-.117-1.993l.117-.007h1z"/><path d="M21 11a1 1 0 0 1 .117 1.993l-.117 .007h-1a1 1 0 0 1-.117-1.993l.117-.007h1z"/><path d="M6.213 4.81l.094 .083l.7 .7a1 1 0 0 1-1.32 1.497l-.094-.083l-.7-.7a1 1 0 0 1 1.217-1.567l.102 .07z"/><path d="M19.107 4.893a1 1 0 0 1 .083 1.32l-.083 .094l-.7 .7a1 1 0 0 1-1.497-1.32l.083-.094l.7-.7a1 1 0 0 1 1.414 0z"/><path d="M12 2a1 1 0 0 1 .993 .883l.007 .117v1a1 1 0 0 1-1.993 .117l-.007-.117v-1a1 1 0 0 1 1-1z"/><path d="M12 7a5 5 0 1 1-4.995 5.217l-.005-.217l.005-.217a5 5 0 0 1 4.995-4.783z"/>`);
 const ICO_SETTINGS    = tablerSvgFilled(THEME_ICON_SIZE, `<path d="M14.647 4.081a.724 .724 0 0 0 1.08 .448c2.439 -1.485 5.23 1.305 3.745 3.744a.724 .724 0 0 0 .447 1.08c2.775 .673 2.775 4.62 0 5.294a.724 .724 0 0 0 -.448 1.08c1.485 2.439 -1.305 5.23 -3.744 3.745a.724 .724 0 0 0 -1.08 .447c-.673 2.775 -4.62 2.775 -5.294 0a.724 .724 0 0 0 -1.08 -.448c-2.439 1.485 -5.23 -1.305 -3.745 -3.744a.724 .724 0 0 0 -.447 -1.08c-2.775 -.673 -2.775 -4.62 0 -5.294a.724 .724 0 0 0 .448 -1.08c-1.485 -2.439 1.305 -5.23 3.744 -3.745a.722 .722 0 0 0 1.08 -.447c.673 -2.775 4.62 -2.775 5.294 0zm-2.647 4.919a3 3 0 1 0 0 6a3 3 0 0 0 0 -6"/>`);
 const ICO_VIBRATION   = tablerSvg(THEME_ICON_SIZE,   `<path d="M3 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -14"/><path d="M8 4l2 0"/><path d="M9 17l0 .01"/><path d="M21 6l-2 3l2 3l-2 3l2 3"/>`);
+const ICO_TROPHY      = tablerSvg(24, `<path d="M8 21l8 0"/><path d="M12 17l0 4"/><path d="M7 4l10 0"/><path d="M17 4v8a5 5 0 0 1 -10 0v-8"/><path d="M3 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M17 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>`);
+const ICO_SWORDS      = tablerSvg(24, `<path d="M21 3v5l-11 9l-4 4l-3 -3l4 -4l9 -11l5 0"/><path d="M5 13l6 6"/><path d="M14.32 17.32l3.68 3.68l3 -3l-3.365 -3.365"/><path d="M10 5.5l-2 -2.5h-5v5l3 2.5"/>`);
+const ICO_FLAME       = tablerSvg(24, `<path d="M12 10.941c2.333 -3.308 .167 -7.823 -1 -8.941c0 3.395 -2.235 5.299 -3.667 6.706c-1.43 1.408 -2.333 3.294 -2.333 5.588c0 3.704 3.134 6.706 7 6.706c3.866 0 7 -3.002 7 -6.706c0 -1.712 -1.232 -4.403 -2.333 -5.588c-2.084 3.353 -3.257 3.353 -4.667 2.235"/>`);
+const ICO_STOPWATCH   = tablerSvg(24, `<path d="M5 13a7 7 0 1 0 14 0a7 7 0 0 0 -14 0"/><path d="M14.5 10.5l-2.5 2.5"/><path d="M17 8l1 -1"/><path d="M14 3h-4"/>`);
 const ICO_RESTART     = tablerSvg(THEME_ICON_SIZE,   `<path d="M20 11a8 8 0 1 0 .5 4"/><path d="M20 4v7h-7"/>`);
 
 // ── Versionamento ─────────────────────────────────────────────────────────
@@ -1110,10 +1114,10 @@ function showMenu() {
         </div>
 
         <div class="menu-modes-section">
-          ${menuModeButton("ranked",       "🏆", "menu_ranked",       "menu_ranked_sub",       RANKED_UNLOCK_STAGE)}
-          ${menuModeButton("timer-attack", "⏱️", "menu_timer_attack", "menu_timer_attack_sub", TIMER_ATTACK_UNLOCK_STAGE)}
-          ${menuModeButton("nerves",       "🔥", "menu_nerves",       "menu_nerves_sub",        NERVES_OF_STEEL_UNLOCK_STAGE)}
-          ${menuModeButton("x1",           "⚔️", "menu_x1",           "menu_x1_sub",            999)}
+          ${menuModeButton("ranked",       ICO_TROPHY,    "menu_ranked",       "menu_ranked_sub",       RANKED_UNLOCK_STAGE)}
+          ${menuModeButton("timer-attack", ICO_STOPWATCH, "menu_timer_attack", "menu_timer_attack_sub", TIMER_ATTACK_UNLOCK_STAGE)}
+          ${menuModeButton("nerves",       ICO_FLAME,     "menu_nerves",       "menu_nerves_sub",        NERVES_OF_STEEL_UNLOCK_STAGE)}
+          ${menuModeButton("x1",           ICO_SWORDS,    "menu_x1",           "menu_x1_sub",            999)}
         </div>
 
         ${langSelectorHTML()}
@@ -1228,7 +1232,7 @@ function showRankedScreen(): void {
     <div class="screen setup-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>🏆 ${t("menu_ranked")}</h2>
+        <h2>${ICO_TROPHY} ${t("menu_ranked")}</h2>
         <span class="header-end-spacer"></span>
       </div>
       <div class="mode-info-card">
@@ -1248,7 +1252,7 @@ function showTimerAttackScreen(): void {
     <div class="screen setup-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>⏱️ ${t("menu_timer_attack")}</h2>
+        <h2>${ICO_STOPWATCH} ${t("menu_timer_attack")}</h2>
         <span class="header-end-spacer"></span>
       </div>
       <div class="mode-info-card">
@@ -1269,7 +1273,7 @@ function showNervesOfSteelScreen(): void {
     <div class="screen setup-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>🔥 ${t("menu_nerves")}</h2>
+        <h2>${ICO_FLAME} ${t("menu_nerves")}</h2>
         <span class="header-end-spacer"></span>
       </div>
       <div class="mode-info-card">
@@ -1289,11 +1293,11 @@ function showX1Screen(): void {
     <div class="screen setup-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>⚔️ ${t("x1_coming_soon_title")}</h2>
+        <h2>${ICO_SWORDS} ${t("x1_coming_soon_title")}</h2>
         <span class="header-end-spacer"></span>
       </div>
       <div class="mode-coming-card">
-        <div class="mode-coming-emoji">⚔️</div>
+        <div class="mode-coming-emoji">${ICO_SWORDS}</div>
         <div class="mode-coming-title">${t("x1_coming_soon_title")}</div>
         <div class="mode-coming-msg">${t("x1_coming_soon_msg")}</div>
       </div>
@@ -2966,7 +2970,8 @@ html[data-theme="pink"] #btn-mode-x1 .btn-menu-icon-wrap { background: var(--ui-
 .mode-tagline { font-size: .95rem; font-weight: 800; color: var(--text); line-height: 1.4; }
 .mode-anti-p2w { font-size: .78rem; color: var(--text-3); font-style: italic; margin-top: 4px; }
 .mode-coming-card { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 40px 16px; text-align: center; }
-.mode-coming-emoji { font-size: 3rem; }
+.mode-coming-emoji { font-size: 3rem; display: flex; justify-content: center; }
+.mode-coming-emoji svg { width: 56px; height: 56px; }
 .mode-coming-title { font-size: 1.4rem; font-weight: 900; color: var(--text); }
 .mode-coming-msg { font-size: .9rem; color: var(--text-2); line-height: 1.5; }
 `;
