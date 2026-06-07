@@ -1969,6 +1969,7 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
   background: var(--bg-2); border: 1px solid var(--border-strong);
   border-radius: 16px; padding: 12px 20px;
   box-shadow: var(--shadow); transition: background .3s;
+  width: 33.33%; min-width: 160px; margin: 0 auto;
 }
 .rank-ring-wrap {
   position: relative; width: 54px; height: 54px;
@@ -2311,6 +2312,8 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
     padding: 8px 12px;
     gap: 10px;
     border-radius: 14px;
+    width: 55%;
+    min-width: 140px;
   }
   .rank-ring-wrap {
     width: 44px;
