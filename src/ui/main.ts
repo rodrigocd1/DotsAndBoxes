@@ -2341,7 +2341,7 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
     font-size: 1rem;
   }
   .btn-menu-text {
-    align-items: flex-start;
+    align-items: center;
     gap: 0;
   }
   .btn-menu-text strong {
