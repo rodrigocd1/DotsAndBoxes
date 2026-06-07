@@ -266,12 +266,30 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     timer_attack_duration: "3 minutos",
     timer_attack_no_powers: "Sem poderes neste modo.",
     timer_attack_ranking: "Ranking Semanal",
+    ta_start: "Iniciar Timer Attack",
+    ta_play_again: "Jogar Novamente",
+    ta_result_title: "Fim de Tempo!",
+    ta_score_label: "{n} caixas",
+    ta_time_label: "Tempo",
 
     // Nervos de Aço
     nerves_tagline: "Uma vida. Tempo correndo. Até onde você aguenta?",
     nerves_move_time: "{s}s por jogada",
     nerves_vip_pause: "VIP pode pausar e continuar depois",
     nerves_ranking: "Ranking Semanal",
+    nerves_start: "Iniciar Tentativa",
+    nerves_round: "Rodada {n}",
+    nerves_result_title: "Tentativa Encerrada!",
+    nerves_rounds_survived: "{n} rodada(s)",
+    nerves_try_again: "Tentar Novamente",
+    nerves_time_up: "⏰ Tempo esgotado!",
+    nerves_lost_round: "Bot venceu a rodada",
+    nerves_won_round: "Rodada {n} concluída!",
+    nerves_vip_lives: "+1 vida extra VIP",
+
+    // Ranking compartilhado
+    rank_weekly_title: "Ranking Semanal",
+    rank_no_entries: "Nenhuma pontuação esta semana.",
 
     // X1
     x1_coming_soon_title: "X1 Online",
@@ -489,12 +507,30 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     timer_attack_duration: "3 minutos",
     timer_attack_no_powers: "Sem poderes neste modo.",
     timer_attack_ranking: "Ranking Semanal",
+    ta_start: "Iniciar Timer Attack",
+    ta_play_again: "Jogar Novamente",
+    ta_result_title: "Fim de Tempo!",
+    ta_score_label: "{n} caixas",
+    ta_time_label: "Tempo",
 
     // Nervos de Aço
     nerves_tagline: "Uma vida. Tempo a correr. Até onde aguenta?",
     nerves_move_time: "{s}s por jogada",
     nerves_vip_pause: "VIP pode pausar e continuar depois",
     nerves_ranking: "Ranking Semanal",
+    nerves_start: "Iniciar Tentativa",
+    nerves_round: "Rodada {n}",
+    nerves_result_title: "Tentativa Encerrada!",
+    nerves_rounds_survived: "{n} rodada(s)",
+    nerves_try_again: "Tentar Novamente",
+    nerves_time_up: "⏰ Tempo esgotado!",
+    nerves_lost_round: "Bot venceu a rodada",
+    nerves_won_round: "Rodada {n} concluída!",
+    nerves_vip_lives: "+1 vida extra VIP",
+
+    // Ranking compartilhado
+    rank_weekly_title: "Ranking Semanal",
+    rank_no_entries: "Nenhuma pontuação esta semana.",
 
     // X1
     x1_coming_soon_title: "X1 Online",
@@ -712,12 +748,30 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     timer_attack_duration: "3 minutos",
     timer_attack_no_powers: "Sin poderes en este modo.",
     timer_attack_ranking: "Ranking Semanal",
+    ta_start: "Iniciar Timer Attack",
+    ta_play_again: "Jugar de Nuevo",
+    ta_result_title: "¡Tiempo Agotado!",
+    ta_score_label: "{n} casillas",
+    ta_time_label: "Tiempo",
 
     // Nervios de Acero
     nerves_tagline: "Una vida. El tiempo corre. ¿Hasta dónde aguantas?",
     nerves_move_time: "{s}s por jugada",
     nerves_vip_pause: "VIP puede pausar y continuar después",
     nerves_ranking: "Ranking Semanal",
+    nerves_start: "Iniciar Intento",
+    nerves_round: "Ronda {n}",
+    nerves_result_title: "¡Intento Finalizado!",
+    nerves_rounds_survived: "{n} ronda(s)",
+    nerves_try_again: "Intentar de Nuevo",
+    nerves_time_up: "⏰ ¡Tiempo agotado!",
+    nerves_lost_round: "El bot ganó la ronda",
+    nerves_won_round: "¡Ronda {n} completada!",
+    nerves_vip_lives: "+1 vida extra VIP",
+
+    // Ranking compartido
+    rank_weekly_title: "Ranking Semanal",
+    rank_no_entries: "Sin puntuaciones esta semana.",
 
     // X1
     x1_coming_soon_title: "X1 Online",
@@ -935,12 +989,30 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     timer_attack_duration: "3 minutes",
     timer_attack_no_powers: "No powers in this mode.",
     timer_attack_ranking: "Weekly Ranking",
+    ta_start: "Start Timer Attack",
+    ta_play_again: "Play Again",
+    ta_result_title: "Time's Up!",
+    ta_score_label: "{n} boxes",
+    ta_time_label: "Time",
 
     // Nerves of Steel
     nerves_tagline: "One life. Clock ticking. How far can you go?",
     nerves_move_time: "{s}s per move",
     nerves_vip_pause: "VIP can pause and resume later",
     nerves_ranking: "Weekly Ranking",
+    nerves_start: "Start Attempt",
+    nerves_round: "Round {n}",
+    nerves_result_title: "Attempt Over!",
+    nerves_rounds_survived: "{n} round(s)",
+    nerves_try_again: "Try Again",
+    nerves_time_up: "⏰ Time's up!",
+    nerves_lost_round: "Bot won the round",
+    nerves_won_round: "Round {n} cleared!",
+    nerves_vip_lives: "+1 extra VIP life",
+
+    // Shared ranking
+    rank_weekly_title: "Weekly Ranking",
+    rank_no_entries: "No scores this week.",
 
     // X1
     x1_coming_soon_title: "X1 Online",

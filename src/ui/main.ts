@@ -40,6 +40,8 @@ import { calculateXp } from "../services/xpSystem";
 import { createLabReport } from "../services/labReport";
 import {
   NERVES_OF_STEEL_MOVE_TIME_SECONDS, NERVES_OF_STEEL_VIP_EXTRA_TIME_SECONDS,
+  NERVES_OF_STEEL_VIP_EXTRA_LIVES,
+  TIMER_ATTACK_DURATION_SECONDS,
   TIMER_ATTACK_UNLOCK_STAGE, RANKED_UNLOCK_STAGE, NERVES_OF_STEEL_UNLOCK_STAGE,
 } from "../config/game-constants";
 import { t, getCurrentLang, setLang, LANG_NAMES, Lang } from "./i18n";
@@ -90,7 +92,7 @@ const ICO_RESTART     = tablerSvg(THEME_ICON_SIZE,   `<path d="M20 11a8 8 0 1 0 
 
 // ── Estado global ─────────────────────────────────────────────────────────
 interface GameSession {
-  mode: "arcade" | "vs-bot" | "multi" | "lab";
+  mode: "arcade" | "vs-bot" | "multi" | "lab" | "timer-attack" | "nerves";
   stageId?: number;
   botDifficulty?: BotDifficulty;
   playerCount?: number;
@@ -101,11 +103,73 @@ interface GameSession {
   freeRetry: boolean;
   maxChain?: number; // max caixas fechadas pelo humano em um único turno (arcade)
   finishShown: boolean;
+  // Timer Attack
+  timerSecondsLeft?: number;
+  // Nervos de Aço
+  nervesRound?: number;
+  nervesLives?: number;
+  nervesScore?: number;
 }
 
 let session: GameSession | null = null;
 let hoverLine: Line | null = null;
 let godMode: GodModeConfig = loadGodMode();
+
+// ── Timers globais (Timer Attack / Nervos de Aço) ─────────────────────────
+let attackTimerInterval: ReturnType<typeof setInterval> | null = null;
+let nervesTimerInterval: ReturnType<typeof setInterval> | null = null;
+function clearActiveTimers() {
+  if (attackTimerInterval) { clearInterval(attackTimerInterval); attackTimerInterval = null; }
+  if (nervesTimerInterval) { clearInterval(nervesTimerInterval); nervesTimerInterval = null; }
+}
+
+// ── Ranking semanal local ─────────────────────────────────────────────────
+const TA_RANKING_KEY      = "dab_ta_rank";
+const NERVES_RANKING_KEY  = "dab_nerves_rank";
+interface WeekRankEntry { name: string; score: number; date: number; }
+
+function rankWeekStart(): number {
+  const d = new Date(); d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - ((d.getDay()+6)%7));
+  return d.getTime();
+}
+function loadWeekRanking(key: string): WeekRankEntry[] {
+  try {
+    const raw = localStorage.getItem(key); if (!raw) return [];
+    const data = JSON.parse(raw) as { weekStart: number; entries: WeekRankEntry[] };
+    return data.weekStart >= rankWeekStart() ? data.entries : [];
+  } catch { return []; }
+}
+function addWeekRankEntry(key: string, entry: WeekRankEntry): WeekRankEntry[] {
+  const entries = loadWeekRanking(key);
+  entries.push(entry);
+  entries.sort((a,b) => b.score - a.score);
+  const top = entries.slice(0, 10);
+  localStorage.setItem(key, JSON.stringify({ weekStart: rankWeekStart(), entries: top }));
+  return top;
+}
+function weekRankHTML(entries: WeekRankEntry[], myScore: number, scoreKey: string): string {
+  if (!entries.length) return `<p class="rank-empty">${t("rank_no_entries")}</p>`;
+  const medals = ["🥇","🥈","🥉"];
+  const myIdx = entries.findIndex(e => e.score === myScore);
+  return `<div class="rank-table">${entries.map((e, i) => `
+    <div class="rank-row${i === myIdx ? " rank-row--me" : ""}">
+      <span class="rank-pos">${i < 3 ? medals[i]! : `${i+1}.`}</span>
+      <span class="rank-name">${e.name}</span>
+      <span class="rank-score">${t(scoreKey, {n: e.score})}</span>
+    </div>`).join("")}</div>`;
+}
+function formatTimer(s: number): string {
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+}
+function nervesRoundDifficulty(round: number): BotDifficulty {
+  if (round <= 2)  return "muito-facil";
+  if (round <= 5)  return "facil";
+  if (round <= 9)  return "normal";
+  if (round <= 13) return "dificil";
+  if (round <= 17) return "muito-dificil";
+  return "impossivel";
+}
 
 const app = document.getElementById("app")!;
 
@@ -1426,45 +1490,116 @@ function showRankedScreen(): void {
   document.getElementById("btn-back")!.onclick = showMenu;
 }
 
+function showTimerAttackRanking(): void {
+  const entries = loadWeekRanking(TA_RANKING_KEY);
+  const ov = document.createElement("div");
+  ov.className = "result-overlay";
+  ov.innerHTML = `
+    <div class="result-card">
+      <div class="result-header">
+        <span>${ICO_STOPWATCH} ${t("rank_weekly_title")}</span>
+        <button class="modal-close" id="ta-rank-close">✕</button>
+      </div>
+      ${weekRankHTML(entries, -1, "ta_score_label")}
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("#ta-rank-close")!.addEventListener("click", () => ov.remove());
+  ov.addEventListener("click", e => { if (e.target === ov) ov.remove(); });
+}
+
 function showTimerAttackScreen(): void {
   stopEnergyTimer();
   app.innerHTML = `
     <div class="screen setup-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>${ICO_STOPWATCH} ${t("menu_timer_attack")}</h2>
+        <h2>${sectionTitle(ICO_STOPWATCH, t("menu_timer_attack"))}</h2>
         <span class="header-end-spacer"></span>
       </div>
       <div class="mode-info-card">
-        <div class="mode-info-row"><span>${t("timer_attack_duration")}</span></div>
-        <div class="mode-info-row"><span>${t("timer_attack_no_powers")}</span></div>
-        <div class="mode-info-row"><span>${t("timer_attack_ranking")}</span></div>
+        <div class="mode-info-row">${ICO_STOPWATCH}<span>${t("timer_attack_duration")}</span></div>
+        <div class="mode-info-row">🚫<span>${t("timer_attack_no_powers")}</span></div>
+        <div class="mode-info-row">🏆<span>${t("timer_attack_ranking")}</span></div>
       </div>
-      <p style="color:var(--text-2);font-size:.85rem;text-align:center">${t("mode_coming_soon")}</p>
+      <div class="setup-section">
+        <label class="setup-label">${t("setup_difficulty")}</label>
+        <div class="diff-grid">${BOT_DIFFICULTIES.map((k) => {
+          const m = DIFF_META[k];
+          return `<button class="btn-diff btn-diff--${m.tier}" data-diff="${k}"><span class="diff-icon">${m.icon}</span>${getDiffLabel(k)}</button>`;
+        }).join("")}</div>
+      </div>
+      <div class="setup-section">
+        <label class="setup-label">${t("setup_grid")}</label>
+        <div class="grid-size-row">${[3,4,5,6].map(n =>
+          `<button class="btn-grid-size" data-size="${n}"><span class="grid-size-label">${n}×${n}</span>${dotGridHTML(n)}</button>`
+        ).join("")}</div>
+      </div>
+      <button class="btn-secondary" id="btn-ta-rank" style="margin-top:4px">🏆 ${t("timer_attack_ranking")}</button>
+      <button class="btn-start" id="btn-start" disabled>${t("ta_start")}</button>
     </div>`;
   document.getElementById("btn-back")!.onclick = showMenu;
+  let diff: BotDifficulty | null = null; let sz = 4;
+  (document.querySelector(`[data-size="4"]`) as HTMLElement).classList.add("selected");
+  document.querySelectorAll(".btn-diff").forEach((b) => {
+    (b as HTMLElement).onclick = () => {
+      document.querySelectorAll(".btn-diff").forEach(x => x.classList.remove("selected"));
+      b.classList.add("selected"); diff = (b as HTMLElement).dataset["diff"] as BotDifficulty;
+      (document.getElementById("btn-start") as HTMLButtonElement).disabled = false;
+    };
+  });
+  document.querySelectorAll(".btn-grid-size").forEach((b) => {
+    (b as HTMLElement).onclick = () => {
+      document.querySelectorAll(".btn-grid-size").forEach(x => x.classList.remove("selected"));
+      b.classList.add("selected"); sz = parseInt((b as HTMLElement).dataset["size"]!, 10);
+    };
+  });
+  document.getElementById("btn-ta-rank")!.onclick = showTimerAttackRanking;
+  document.getElementById("btn-start")!.onclick = () => { if (diff) startTimerAttackGame(diff, sz); };
+}
+
+function showNervesRanking(): void {
+  const entries = loadWeekRanking(NERVES_RANKING_KEY);
+  const ov = document.createElement("div");
+  ov.className = "result-overlay";
+  ov.innerHTML = `
+    <div class="result-card">
+      <div class="result-header">
+        <span>${ICO_FLAME} ${t("rank_weekly_title")}</span>
+        <button class="modal-close" id="nerves-rank-close">✕</button>
+      </div>
+      ${weekRankHTML(entries, -1, "nerves_rounds_survived")}
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("#nerves-rank-close")!.addEventListener("click", () => ov.remove());
+  ov.addEventListener("click", e => { if (e.target === ov) ov.remove(); });
 }
 
 function showNervesOfSteelScreen(): void {
   stopEnergyTimer();
   const isVip = isVipActive();
   const moveTime = NERVES_OF_STEEL_MOVE_TIME_SECONDS + (isVip ? NERVES_OF_STEEL_VIP_EXTRA_TIME_SECONDS : 0);
+  const lives = 1 + (isVip ? NERVES_OF_STEEL_VIP_EXTRA_LIVES : 0);
   app.innerHTML = `
     <div class="screen setup-screen">
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
-        <h2>${ICO_FLAME} ${t("menu_nerves")}</h2>
+        <h2>${sectionTitle(ICO_FLAME, t("menu_nerves"))}</h2>
         <span class="header-end-spacer"></span>
       </div>
       <div class="mode-info-card">
         <div class="mode-tagline">${t("nerves_tagline")}</div>
-        <div class="mode-info-row"><span>${t("nerves_move_time", { s: moveTime })}</span></div>
-        ${isVip ? `<div class="mode-info-row"><span>${t("nerves_vip_pause")}</span></div>` : ""}
-        <div class="mode-info-row"><span>${t("nerves_ranking")}</span></div>
+        <div class="mode-info-row">❤️<span>${"❤️".repeat(lives)} ${"vida".concat(lives > 1 ? "s" : "")}</span></div>
+        <div class="mode-info-row">⏱<span>${t("nerves_move_time", { s: moveTime })}</span></div>
+        ${isVip ? `<div class="mode-info-row">⭐<span>${t("nerves_vip_lives")}</span></div>` : ""}
+        <div class="mode-info-row">📈<span>Dificuldade aumenta a cada rodada</span></div>
+        <div class="mode-info-row">🏆<span>${t("nerves_ranking")}</span></div>
       </div>
-      <p style="color:var(--text-2);font-size:.85rem;text-align:center">${t("mode_coming_soon")}</p>
+      <button class="btn-secondary" id="btn-nerves-rank" style="margin-top:4px">🏆 ${t("nerves_ranking")}</button>
+      <button class="btn-start" id="btn-start">${t("nerves_start")}</button>
     </div>`;
   document.getElementById("btn-back")!.onclick = showMenu;
+  document.getElementById("btn-nerves-rank")!.onclick = showNervesRanking;
+  document.getElementById("btn-start")!.onclick = () => startNervesGame(1, lives, 0);
 }
 
 function showX1Screen(): void {
@@ -1671,6 +1806,28 @@ function startBotGame(difficulty: BotDifficulty, gridSize: number) {
   };
   showGame();
 }
+function startTimerAttackGame(difficulty: BotDifficulty, gridSize: number) {
+  clearActiveTimers();
+  const palette = getThemePlayerColors();
+  session = {
+    mode: "timer-attack", botDifficulty: difficulty,
+    controller: new GameController({ gridSize, players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }] }),
+    botPlayerId: "p2", botThinking: false, freeRetry: false, finishShown: false,
+    timerSecondsLeft: TIMER_ATTACK_DURATION_SECONDS,
+  };
+  showGame();
+}
+function startNervesGame(round: number, lives: number, score: number) {
+  clearActiveTimers();
+  const palette = getThemePlayerColors();
+  session = {
+    mode: "nerves", botDifficulty: nervesRoundDifficulty(round),
+    controller: new GameController({ gridSize: 4, players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }] }),
+    botPlayerId: "p2", botThinking: false, freeRetry: false, finishShown: false,
+    nervesRound: round, nervesLives: lives, nervesScore: score,
+  };
+  showGame();
+}
 function startMultiGame(playerCount: number, teamMode: boolean, gridSize: number) {
   const names = playerNames();
   const palette = getThemePlayerColors();
@@ -1682,13 +1839,22 @@ function startMultiGame(playerCount: number, teamMode: boolean, gridSize: number
 // ── JOGO ──────────────────────────────────────────────────────────────────
 function showGame() {
   if (!session) return;
+  clearActiveTimers();
   const s = session; stopEnergyTimer();
+  const nervesMoveTime = s.mode === "nerves"
+    ? NERVES_OF_STEEL_MOVE_TIME_SECONDS + (isVipActive() ? NERVES_OF_STEEL_VIP_EXTRA_TIME_SECONDS : 0)
+    : 0;
+  let nervesMoveTickLeft = nervesMoveTime;
   const modeTitle = s.mode === "arcade"
     ? sectionTitle(ICO_STAR, getStageTitle(getStage(s.stageId!)))
     : s.mode === "vs-bot"
     ? sectionTitle(ICO_BARBELL, `${t("menu_bot")} · ${getDiffLabel(s.botDifficulty!)}`)
     : s.mode === "lab"
     ? sectionTitle(ICO_LAB, `${t("menu_lab")} · ${getDiffLabel(s.botDifficulty!)}`)
+    : s.mode === "timer-attack"
+    ? sectionTitle(ICO_STOPWATCH, t("menu_timer_attack"))
+    : s.mode === "nerves"
+    ? sectionTitle(ICO_FLAME, `${t("menu_nerves")} · ${t("nerves_round", {n: s.nervesRound!})}`)
     : sectionTitle(ICO_USERS, s.teamMode ? t("teams_2v2") : t("n_players", { n: s.playerCount! }));
 
   app.innerHTML = `
@@ -1698,12 +1864,14 @@ function showGame() {
           <button class="btn-back" id="btn-back">${t("back")}</button>
           <h2>${modeTitle}</h2>
           <div class="game-header-actions">
-            ${(s.mode === "vs-bot" || s.mode === "lab") ? `<button class="btn-restart-corner" id="btn-restart-game" title="${t("restart")}" aria-label="${t("restart")}">${ICO_RESTART}</button>` : `<span class="header-end-spacer"></span>`}
+            ${(s.mode === "vs-bot" || s.mode === "lab" || s.mode === "timer-attack") ? `<button class="btn-restart-corner" id="btn-restart-game" title="${t("restart")}" aria-label="${t("restart")}">${ICO_RESTART}</button>` : `<span class="header-end-spacer"></span>`}
             <button class="btn-god-corner" id="btn-god-game" title="${t("god_mode")}" aria-label="${t("god_mode")}">👑</button>
           </div>
         </div>
         <div id="scoreboard" class="scoreboard"></div>
         <div id="status" class="status"></div>
+        ${s.mode === "timer-attack" ? `<div id="ta-timer" class="ta-timer">${formatTimer(s.timerSecondsLeft!)}</div>` : ""}
+        ${s.mode === "nerves" ? `<div class="nerves-hud"><span class="nerves-lives" id="nerves-lives">${"❤️".repeat(s.nervesLives!)}</span><span class="nerves-round-badge" id="nerves-round-badge">${t("nerves_round",{n:s.nervesRound!})}</span><span class="nerves-mtimer ${nervesMoveTickLeft <= 5 ? "nerves-mtimer--danger" : ""}" id="nerves-mtimer">${nervesMoveTime}s</span></div>` : ""}
         ${(s.mode === "vs-bot" || s.mode === "lab") ? powerBarHTML() : ""}
         ${s.mode === "arcade" ? `<div id="energy-display" class="game-energy-display">${energyHTML()}</div>` : ""}
       </div>
@@ -1711,17 +1879,20 @@ function showGame() {
     </div>`;
 
   document.getElementById("btn-back")!.onclick = () => {
-    session = null; hoverLine = null;
+    clearActiveTimers(); session = null; hoverLine = null;
     if (s.mode === "arcade") showArcadeMap();
     else if (s.mode === "vs-bot") showBotSetup();
     else if (s.mode === "lab") showLabScreen();
+    else if (s.mode === "timer-attack") showTimerAttackScreen();
+    else if (s.mode === "nerves") showNervesOfSteelScreen();
     else showMultiSetup();
   };
   document.getElementById("btn-restart-game")?.addEventListener("click", () => {
-    if (s.mode !== "vs-bot" && s.mode !== "lab") return;
+    if (s.mode !== "vs-bot" && s.mode !== "lab" && s.mode !== "timer-attack") return;
     const st = s.controller.getState();
-    hoverLine = null;
+    hoverLine = null; clearActiveTimers();
     if (s.mode === "lab") startLabGame(s.botDifficulty!, st.gridSize);
+    else if (s.mode === "timer-attack") startTimerAttackGame(s.botDifficulty!, st.gridSize);
     else startBotGame(s.botDifficulty!, st.gridSize);
   });
   document.getElementById("btn-god-game")?.addEventListener("click", () => showGodModeModal(s.stageId));
@@ -1808,6 +1979,18 @@ function showGame() {
       const bot2 = st.players.find((p)=>p.id===s.botPlayerId)!;
       const result: "won"|"lost"|"tie" = you.score === bot2.score ? "tie" : you.score > bot2.score ? "won" : "lost";
       showLabFeedback(result, s.botDifficulty!, st.gridSize, showLabScreen);
+    } else if (s.mode === "timer-attack") {
+      clearActiveTimers();
+      const you = st.players.find((p)=>p.id!==s.botPlayerId)!;
+      const myScore = you.score;
+      const playerName = loadProfile().name;
+      const ranking = addWeekRankEntry(TA_RANKING_KEY, { name: playerName, score: myScore, date: Date.now() });
+      showTimerAttackResultOverlay(myScore, ranking);
+    } else if (s.mode === "nerves") {
+      clearActiveTimers();
+      const you  = st.players.find((p)=>p.id!==s.botPlayerId)!;
+      const bot2 = st.players.find((p)=>p.id===s.botPlayerId)!;
+      handleNervesRoundEnd(you.score > bot2.score);
     } else if (s.mode === "vs-bot") {
       const you  = st.players.find((p)=>p.id!==s.botPlayerId)!;
       const bot2 = st.players.find((p)=>p.id===s.botPlayerId)!;
@@ -1822,18 +2005,125 @@ function showGame() {
     }
   }
 
+  function showTimerAttackResultOverlay(myScore: number, ranking: WeekRankEntry[]) {
+    const ov = document.createElement("div");
+    ov.className = "result-overlay";
+    ov.innerHTML = `
+      <div class="result-card">
+        <div class="result-header"><span>${ICO_STOPWATCH} ${t("ta_result_title")}</span></div>
+        <div class="result-score-big">${t("ta_score_label", {n: myScore})}</div>
+        <div class="result-rank-title">${t("rank_weekly_title")}</div>
+        ${weekRankHTML(ranking, myScore, "ta_score_label")}
+        <div class="result-actions">
+          <button class="btn-start" id="ta-retry">${t("ta_play_again")}</button>
+          <button class="btn-secondary" id="ta-back">${t("back")}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector("#ta-retry")!.addEventListener("click", () => {
+      ov.remove(); startTimerAttackGame(s.botDifficulty!, s.controller.getState().gridSize);
+    });
+    ov.querySelector("#ta-back")!.addEventListener("click", () => {
+      ov.remove(); session = null; hoverLine = null; showTimerAttackScreen();
+    });
+  }
+
+  function showNervesResultOverlay(finalScore: number, ranking: WeekRankEntry[]) {
+    const ov = document.createElement("div");
+    ov.className = "result-overlay";
+    ov.innerHTML = `
+      <div class="result-card">
+        <div class="result-header"><span>${ICO_FLAME} ${t("nerves_result_title")}</span></div>
+        <div class="result-score-big">${t("nerves_rounds_survived", {n: finalScore})}</div>
+        <div class="result-rank-title">${t("rank_weekly_title")}</div>
+        ${weekRankHTML(ranking, finalScore, "nerves_rounds_survived")}
+        <div class="result-actions">
+          <button class="btn-start" id="nerves-retry">${t("nerves_try_again")}</button>
+          <button class="btn-secondary" id="nerves-back">${t("back")}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector("#nerves-retry")!.addEventListener("click", () => {
+      ov.remove();
+      const lives = 1 + (isVipActive() ? NERVES_OF_STEEL_VIP_EXTRA_LIVES : 0);
+      startNervesGame(1, lives, 0);
+    });
+    ov.querySelector("#nerves-back")!.addEventListener("click", () => {
+      ov.remove(); session = null; hoverLine = null; showNervesOfSteelScreen();
+    });
+  }
+
+  function handleNervesRoundEnd(won: boolean) {
+    const curRound = s.nervesRound!;
+    const curScore = s.nervesScore!;
+    const curLives = s.nervesLives!;
+    if (won) {
+      showToast(t("nerves_won_round", {n: curRound}));
+      setTimeout(() => startNervesGame(curRound + 1, curLives, curScore + 1), 800);
+    } else {
+      const livesLeft = curLives - 1;
+      if (livesLeft > 0) {
+        showToast(`❤️×${livesLeft} — ${t("nerves_lost_round")}`);
+        setTimeout(() => startNervesGame(curRound, livesLeft, curScore), 1000);
+      } else {
+        showToast(t("nerves_lost_round"));
+        const playerName = loadProfile().name;
+        const ranking = addWeekRankEntry(NERVES_RANKING_KEY, { name: playerName, score: curScore, date: Date.now() });
+        setTimeout(() => showNervesResultOverlay(curScore, ranking), 600);
+      }
+    }
+  }
+
+  function handleNervesTimeout() {
+    if (s.finishShown) return;
+    s.finishShown = true;
+    clearActiveTimers();
+    showToast(t("nerves_time_up"));
+    const curRound = s.nervesRound!;
+    const curScore = s.nervesScore!;
+    const livesLeft = s.nervesLives! - 1;
+    if (livesLeft > 0) {
+      setTimeout(() => startNervesGame(curRound, livesLeft, curScore), 1000);
+    } else {
+      const playerName = loadProfile().name;
+      const ranking = addWeekRankEntry(NERVES_RANKING_KEY, { name: playerName, score: curScore, date: Date.now() });
+      setTimeout(() => showNervesResultOverlay(curScore, ranking), 600);
+    }
+  }
+
   function isBotTurn() { return !!s.botPlayerId && s.controller.getState().currentPlayerId===s.botPlayerId; }
 
   function scheduleBotMove() {
     if (!s.botDifficulty) return; s.botThinking=true; updateHUD();
+    if (s.mode === "nerves" && nervesTimerInterval) { clearInterval(nervesTimerInterval); nervesTimerInterval = null; }
     setTimeout(() => {
       if (!session||session!==s) return; const st=s.controller.getState();
       if (st.status==="finished"||!isBotTurn()) return;
       s.controller.playLine(chooseBotMove(st,s.botDifficulty!)); s.botThinking=false; draw();
       if (s.controller.getState().status==="finished") return;
+      if (s.mode === "nerves") { nervesMoveTickLeft = nervesMoveTime; startNervesMoveTimer(); }
       if (isBotTurn()) scheduleBotMove();
       else if (godMode.autoPlayMode) scheduleAutoPlayerMove();
     }, botThinkDelay(s.botDifficulty));
+  }
+
+  function startNervesMoveTimer() {
+    if (nervesTimerInterval) { clearInterval(nervesTimerInterval); nervesTimerInterval = null; }
+    nervesTimerInterval = setInterval(() => {
+      if (!session || session !== s) { clearInterval(nervesTimerInterval!); nervesTimerInterval = null; return; }
+      const st = s.controller.getState();
+      if (st.status === "finished" || s.botThinking || isBotTurn()) return;
+      nervesMoveTickLeft--;
+      const el = document.getElementById("nerves-mtimer");
+      if (el) {
+        el.textContent = `${nervesMoveTickLeft}s`;
+        el.className = `nerves-mtimer${nervesMoveTickLeft <= 5 ? " nerves-mtimer--danger" : ""}`;
+      }
+      if (nervesMoveTickLeft <= 0) {
+        clearInterval(nervesTimerInterval!); nervesTimerInterval = null;
+        handleNervesTimeout();
+      }
+    }, 1000);
   }
 
   function scheduleAutoPlayerMove() {
@@ -1865,6 +2155,12 @@ function showGame() {
       const closed = scoreAfterMove - scoreBefore;
       if (closed > (s.maxChain ?? 0)) s.maxChain = closed;
     }
+    if (s.mode === "nerves") {
+      // After human move: reset move timer (player gets extra time only when bot takes turn)
+      nervesMoveTickLeft = nervesMoveTime;
+      const el = document.getElementById("nerves-mtimer");
+      if (el) { el.textContent = `${nervesMoveTime}s`; el.className = "nerves-mtimer"; }
+    }
     if (isBotTurn()&&s.controller.getState().status!=="finished") scheduleBotMove();
   }
 
@@ -1888,6 +2184,27 @@ function showGame() {
   });
   draw();
   if (s.mode === "arcade") startEnergyTimer();
+
+  // Timer Attack: start 3-minute countdown
+  if (s.mode === "timer-attack") {
+    attackTimerInterval = setInterval(() => {
+      if (!session || session !== s) { clearInterval(attackTimerInterval!); attackTimerInterval = null; return; }
+      s.timerSecondsLeft = (s.timerSecondsLeft ?? 1) - 1;
+      const el = document.getElementById("ta-timer");
+      if (el) {
+        el.textContent = formatTimer(s.timerSecondsLeft);
+        el.className = `ta-timer${s.timerSecondsLeft <= 30 ? " ta-timer--danger" : ""}`;
+      }
+      if (s.timerSecondsLeft <= 0) {
+        clearInterval(attackTimerInterval!); attackTimerInterval = null;
+        if (!s.finishShown) { s.finishShown = true; const st = s.controller.getState(); const you = st.players.find(p=>p.id!==s.botPlayerId)!; const ranking = addWeekRankEntry(TA_RANKING_KEY, { name: loadProfile().name, score: you.score, date: Date.now() }); showTimerAttackResultOverlay(you.score, ranking); }
+      }
+    }, 1000);
+  }
+
+  // Nervos de Aço: start per-move timer (only when it's human's turn)
+  if (s.mode === "nerves" && !isBotTurn()) startNervesMoveTimer();
+
   if (isBotTurn()) scheduleBotMove();
   else if (godMode.autoPlayMode && s.botPlayerId) scheduleAutoPlayerMove();
 }
@@ -3219,6 +3536,72 @@ html[data-theme="pink"] .btn-icon--lab { background: var(--ui-accent-soft); bord
 .mode-coming-emoji svg { width: 56px; height: 56px; }
 .mode-coming-title { font-size: 1.4rem; font-weight: 900; color: var(--text); }
 .mode-coming-msg { font-size: .9rem; color: var(--text-2); line-height: 1.5; }
+
+/* ── Timer Attack ──────────────────────────────────────────── */
+.ta-timer {
+  text-align: center; font-size: 1.6rem; font-weight: 900; letter-spacing: 2px;
+  color: var(--ui-accent); font-variant-numeric: tabular-nums;
+  padding: 4px 0 2px;
+}
+.ta-timer--danger { color: #ef4444; animation: ta-blink .6s step-start infinite; }
+@keyframes ta-blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ── Nervos de Aço HUD ─────────────────────────────────────── */
+.nerves-hud {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 16px; background: var(--bg-3); border-radius: 10px;
+  margin: 0 4px; gap: 8px;
+}
+.nerves-lives { font-size: 1.1rem; letter-spacing: 1px; }
+.nerves-round-badge { font-size: .8rem; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 1px; }
+.nerves-mtimer {
+  font-size: 1.15rem; font-weight: 900; color: var(--ui-accent);
+  font-variant-numeric: tabular-nums; min-width: 36px; text-align: right;
+}
+.nerves-mtimer--danger { color: #ef4444; animation: ta-blink .6s step-start infinite; }
+
+/* ── Result overlay (Timer Attack / Nervos) ────────────────── */
+.result-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.75);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 600; padding: 16px;
+}
+.result-card {
+  background: var(--bg-2); border: 1px solid var(--border-strong);
+  border-radius: 20px; padding: 24px; width: min(360px, 100%);
+  display: flex; flex-direction: column; gap: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.result-header {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 1.05rem; font-weight: 800; color: var(--ui-accent);
+}
+.result-header span { display: inline-flex; align-items: center; gap: 8px; }
+.result-header svg { width: 18px; height: 18px; }
+.result-score-big {
+  text-align: center; font-size: 2rem; font-weight: 900; color: var(--text);
+}
+.result-rank-title { font-size: .75rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; }
+.result-actions { display: flex; flex-direction: column; gap: 8px; }
+.rank-empty { text-align: center; color: var(--text-2); font-size: .88rem; }
+.rank-table { display: flex; flex-direction: column; gap: 6px; }
+.rank-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: .88rem; color: var(--text-2); padding: 6px 8px;
+  border-radius: 8px; background: var(--bg-3);
+}
+.rank-row--me { background: var(--ui-accent-soft); color: var(--ui-accent); font-weight: 700; }
+.rank-pos { min-width: 28px; text-align: center; font-size: 1rem; }
+.rank-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-score { font-weight: 700; font-size: .82rem; white-space: nowrap; }
+
+/* ── btn-secondary ─────────────────────────────────────────── */
+.btn-secondary {
+  background: var(--bg-3); border: 1px solid var(--border-strong); border-radius: 12px;
+  padding: 12px 16px; color: var(--text-2); font-weight: 700; font-size: .9rem;
+  cursor: pointer; text-align: center; transition: all .15s;
+}
+.btn-secondary:hover { border-color: var(--ui-accent-border); color: var(--ui-accent); }
 `;
 document.head.appendChild(style);
 
