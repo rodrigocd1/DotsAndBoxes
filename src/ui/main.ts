@@ -4,6 +4,7 @@ import { chooseBotMove, botThinkDelay, BotDifficulty, BOT_DIFFICULTIES, getDiffL
 import { calculateStars, getDifficultyLabel, getStage, getStageTitle, isDifficultyIntroStage } from "./arcade-stages";
 import {
   ENERGY_REWARD_AMOUNT,
+  GOD_MODE_ENABLED,
   INITIAL_STAGES,
   MAX_ENERGY,
   SKIPS_PER_WEEK,
@@ -21,6 +22,7 @@ import {
   loadVibration, saveVibration, vibrate,
   loadMusicVolume, saveMusicVolume,
   loadMute, saveMute,
+  isLoggedIn, isVipActive, isFeatureUnlocked,
 } from "./storage";
 import {
   REWARDED_AD_STATUS,
@@ -631,17 +633,37 @@ function showSettings() {
 }
 
 // ── God Mode Modal ────────────────────────────────────────────────────────
+function godToggleHtml(id: string, label: string, on: boolean): string {
+  return `<div class="god-row"><label class="god-label">${label}</label><button class="god-toggle ${on?"on":""}" id="${id}">${on ? t("on_label") : t("off_label")}</button></div>`;
+}
+
+function bindGodToggle(ov: HTMLElement, id: string, current: boolean, onChange: (v: boolean) => void): void {
+  const btn = ov.querySelector<HTMLButtonElement>(`#${id}`);
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const newVal = !current;
+    current = newVal;
+    onChange(newVal);
+    btn.textContent = newVal ? t("on_label") : t("off_label");
+    btn.classList.toggle("on", newVal);
+  });
+}
+
 function showGodModeModal(currentStageId?: number) {
+  if (!GOD_MODE_ENABLED) return;
   const ov = document.createElement("div");
   ov.className = "modal-overlay";
   ov.innerHTML = `
     <div class="modal-card god-card">
       <div class="modal-header">${sectionTitle(ICO_SETTINGS, t("god_mode"))}<button class="modal-close" id="gc">✕</button></div>
       <div class="settings-section">
-        <div class="god-row">
-          <label class="god-label">${t("god_unlimited_energy")}</label>
-          <button class="god-toggle ${godMode.unlimitedEnergy?"on":""}" id="ge">${godMode.unlimitedEnergy ? t("on_label") : t("off_label")}</button>
-        </div>
+        ${godToggleHtml("ge", t("god_unlimited_energy"), godMode.unlimitedEnergy)}
+      </div>
+      <div class="settings-section">
+        ${godToggleHtml("god-sso", "Simular SSO", godMode.simulateSso)}
+      </div>
+      <div class="settings-section">
+        ${godToggleHtml("god-vip", "Simular Passe VIP", godMode.simulateVip)}
       </div>
       <div class="settings-section">
         <div class="god-row">
@@ -656,6 +678,22 @@ function showGodModeModal(currentStageId?: number) {
           <button class="god-go" id="gg">${t("god_go")}</button>
         </div>
       </div>
+      <div class="settings-section">
+        <label class="settings-label">Simular Fase Desbloqueada</label>
+        <div class="god-input-row">
+          <input class="god-input" id="god-stage-sim" type="number" min="1" max="${INITIAL_STAGES}" placeholder="Fase" value="${godMode.simulateStage ?? ""}" />
+          <button class="god-go" id="god-stage-set">Setar</button>
+          <button class="god-skip" id="god-stage-clear">Limpar</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <label class="settings-label">Simular Pontos Ranked</label>
+        <div class="god-input-row">
+          <input class="god-input" id="god-rank-sim" type="number" min="0" placeholder="Pontos" value="${godMode.simulateRankedPoints ?? ""}" />
+          <button class="god-go" id="god-rank-set">Setar</button>
+          <button class="god-skip" id="god-rank-clear">Limpar</button>
+        </div>
+      </div>
       ${currentStageId != null ? `
       <div class="settings-section">
         <label class="settings-label">${t("god_phase_tools")}</label>
@@ -666,26 +704,80 @@ function showGodModeModal(currentStageId?: number) {
         <label class="settings-label">${t("god_energy_tools")}</label>
         <button class="god-refill" id="gz">${t("god_zero_energy")}</button>
       </div>
+      <div class="settings-section">
+        <label class="settings-label">Resetar Limites</label>
+        <button class="god-go" id="god-reset-limits">Resetar Tudo (Dica/Radar/Congelar/Retry/Feedback)</button>
+      </div>
       ${currentStageId != null && currentStageId < INITIAL_STAGES ? `<button class="god-skip" id="gsk">${t("god_next",{id:currentStageId+1})}</button>` : ""}
       <button class="god-refill" id="gr">${t("god_refill")}</button>
+      <div class="settings-version">God Mode ${GOD_MODE_ENABLED ? "✅" : "❌"} | SSO: ${isLoggedIn() ? "✅" : "❌"} | VIP: ${isVipActive() ? "✅" : "❌"}</div>
     </div>`;
   document.body.appendChild(ov);
   ov.querySelector("#gc")?.addEventListener("click", () => ov.remove());
   ov.addEventListener("click", (e) => { if (e.target === ov) ov.remove(); });
-  const tb = ov.querySelector<HTMLButtonElement>("#ge")!;
-  tb.addEventListener("click", () => {
-    godMode.unlimitedEnergy = !godMode.unlimitedEnergy; saveGodMode(godMode);
-    tb.textContent = godMode.unlimitedEnergy ? t("on_label") : t("off_label");
-    tb.classList.toggle("on", godMode.unlimitedEnergy); refreshEnergyDisplay();
+
+  // Toggle: Energia ilimitada
+  bindGodToggle(ov, "ge", godMode.unlimitedEnergy, (v) => {
+    godMode.unlimitedEnergy = v; saveGodMode(godMode); refreshEnergyDisplay();
   });
+
+  // Toggle: Simular SSO
+  bindGodToggle(ov, "god-sso", godMode.simulateSso, (v) => {
+    godMode.simulateSso = v; saveGodMode(godMode);
+  });
+
+  // Toggle: Simular VIP
+  bindGodToggle(ov, "god-vip", godMode.simulateVip, (v) => {
+    godMode.simulateVip = v; saveGodMode(godMode);
+  });
+
+  // Simular fase
+  ov.querySelector("#god-stage-set")?.addEventListener("click", () => {
+    const v = parseInt((ov.querySelector<HTMLInputElement>("#god-stage-sim")!).value, 10);
+    if (v >= 1 && v <= INITIAL_STAGES) {
+      godMode.simulateStage = v; saveGodMode(godMode);
+      showToast(`Simulando fase ${v} desbloqueada`);
+    }
+  });
+  ov.querySelector("#god-stage-clear")?.addEventListener("click", () => {
+    godMode.simulateStage = null; saveGodMode(godMode);
+    (ov.querySelector<HTMLInputElement>("#god-stage-sim")!).value = "";
+    showToast("Simulação de fase removida");
+  });
+
+  // Simular pontos ranked
+  ov.querySelector("#god-rank-set")?.addEventListener("click", () => {
+    const v = parseInt((ov.querySelector<HTMLInputElement>("#god-rank-sim")!).value, 10);
+    if (v >= 0) {
+      godMode.simulateRankedPoints = v; saveGodMode(godMode);
+      showToast(`Simulando ${v} pontos ranked`);
+    }
+  });
+  ov.querySelector("#god-rank-clear")?.addEventListener("click", () => {
+    godMode.simulateRankedPoints = null; saveGodMode(godMode);
+    (ov.querySelector<HTMLInputElement>("#god-rank-sim")!).value = "";
+    showToast("Simulação de ranked removida");
+  });
+
+  // Resetar limites diários
+  ov.querySelector("#god-reset-limits")?.addEventListener("click", () => {
+    // Limpa trackers de limites diários
+    localStorage.removeItem("dab_feedback_rewards");
+    localStorage.removeItem("dab_master_tip_daily");
+    localStorage.removeItem("dab_retry_daily");
+    localStorage.removeItem("dab_radar_stock");
+    localStorage.removeItem("dab_freeze_ai");
+    showToast("Todos os limites diários resetados");
+  });
+
   ov.querySelector("#gr")?.addEventListener("click", () => { refillEnergy(); refreshEnergyDisplay(); showToast(t("energy_recharged")); });
   ov.querySelector("#gz")?.addEventListener("click", () => {
     godMode.unlimitedEnergy = false;
     saveGodMode(godMode);
     saveEnergy(0);
     refreshEnergyDisplay();
-    tb.textContent = t("off_label");
-    tb.classList.remove("on");
+    const tb = ov.querySelector<HTMLButtonElement>("#ge");
+    if (tb) { tb.textContent = t("off_label"); tb.classList.remove("on"); }
     showToast(t("god_energy_zeroed"));
   });
   ov.querySelector("#gsr")?.addEventListener("click", () => { setSkipCount(SKIPS_PER_WEEK); ov.querySelector<HTMLElement>("#skip-count-label")!.textContent = `${SKIPS_PER_WEEK}/${SKIPS_PER_WEEK}`; showToast(`${SKIPS_PER_WEEK} pulos restaurados`); });

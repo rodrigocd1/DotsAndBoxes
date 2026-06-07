@@ -249,18 +249,77 @@ const GOD_KEY = "dab_god";
 
 export interface GodModeConfig {
   unlimitedEnergy: boolean;
+  simulateSso: boolean;
+  simulateVip: boolean;
+  simulateStage: number | null;
+  simulateRankedPoints: number | null;
+  simulateCompetitiveEnergy: number | null;
+  simulatePhotoPermission: boolean | null;
+}
+
+function defaultGodMode(): GodModeConfig {
+  return {
+    unlimitedEnergy: false,
+    simulateSso: false,
+    simulateVip: false,
+    simulateStage: null,
+    simulateRankedPoints: null,
+    simulateCompetitiveEnergy: null,
+    simulatePhotoPermission: null,
+  };
 }
 
 export function loadGodMode(): GodModeConfig {
   try {
     const raw = localStorage.getItem(GOD_KEY);
-    if (!raw) return { unlimitedEnergy: false };
-    return JSON.parse(raw) as GodModeConfig;
+    if (!raw) return defaultGodMode();
+    const parsed = JSON.parse(raw) as Partial<GodModeConfig>;
+    return { ...defaultGodMode(), ...parsed };
   } catch {
-    return { unlimitedEnergy: false };
+    return defaultGodMode();
   }
 }
 
 export function saveGodMode(cfg: GodModeConfig): void {
   localStorage.setItem(GOD_KEY, JSON.stringify(cfg));
 }
+
+/** Verifica se o usuário está "logado" (real ou simulado via God Mode) */
+export function isLoggedIn(): boolean {
+  const god = loadGodMode();
+  if (god.simulateSso) return true;
+  // TODO: verificar SSO real quando implementado
+  return false;
+}
+
+/** Verifica se o Passe VIP está ativo (real ou simulado via God Mode) */
+export function isVipActive(): boolean {
+  const god = loadGodMode();
+  if (god.simulateVip) return true;
+  // TODO: verificar assinatura real quando implementada
+  return false;
+}
+
+/** Retorna a fase máxima desbloqueada (real ou simulada via God Mode) */
+export function getEffectiveMaxStage(): number {
+  const god = loadGodMode();
+  if (god.simulateStage !== null && god.simulateStage > 0) {
+    return god.simulateStage;
+  }
+  const profile = loadProfile();
+  let max = 1;
+  for (const key in profile.stageProgress) {
+    const id = parseInt(key, 10);
+    const progress = profile.stageProgress[id];
+    if (progress && progress.stars > 0 && id >= max) {
+      max = id + 1;
+    }
+  }
+  return max;
+}
+
+/** Verifica se um recurso está desbloqueado pela fase atual */
+export function isFeatureUnlocked(requiredStage: number): boolean {
+  return getEffectiveMaxStage() >= requiredStage;
+}
+
