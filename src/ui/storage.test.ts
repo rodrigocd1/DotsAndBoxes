@@ -1,6 +1,9 @@
 import {
+  consumeNervesAttemptIndex,
   loadEnergy,
+  loadNervesProgress,
   msToNextEnergy,
+  resetNervesProgress,
   saveEnergy,
 } from "./storage";
 import { ENERGY_REGEN_MINUTES, GAME_CONSTANTS } from "../config/game-constants";
@@ -51,5 +54,16 @@ describe("energy storage", () => {
     nowSpy.mockReturnValue(now + intervalMs);
     expect(loadEnergy()).toBe(5);
     expect(msToNextEnergy()).toBe(intervalMs);
+  });
+
+  it("persiste e reseta a progressao de tabuleiros do Nervos de Aco", () => {
+    expect(loadNervesProgress().attemptsStarted).toBe(0);
+    expect(consumeNervesAttemptIndex()).toBe(0);
+    expect(consumeNervesAttemptIndex()).toBe(1);
+    expect(loadNervesProgress().attemptsStarted).toBe(2);
+
+    resetNervesProgress();
+
+    expect(loadNervesProgress().attemptsStarted).toBe(0);
   });
 });

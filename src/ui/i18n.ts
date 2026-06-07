@@ -286,6 +286,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     nerves_lost_round: "Bot venceu a rodada",
     nerves_won_round: "Rodada {n} concluída!",
     nerves_vip_lives: "+1 vida extra VIP",
+    nerves_cycle_rule: "Começa no {difficulty} e sobe a cada ciclo de {count} tabuleiros.",
 
     // Ranking compartilhado
     rank_weekly_title: "Ranking Semanal",
@@ -527,6 +528,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     nerves_lost_round: "Bot venceu a rodada",
     nerves_won_round: "Rodada {n} concluída!",
     nerves_vip_lives: "+1 vida extra VIP",
+    nerves_cycle_rule: "Começa no {difficulty} e sobe a cada ciclo de {count} tabuleiros.",
 
     // Ranking compartilhado
     rank_weekly_title: "Ranking Semanal",
@@ -768,6 +770,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     nerves_lost_round: "El bot ganó la ronda",
     nerves_won_round: "¡Ronda {n} completada!",
     nerves_vip_lives: "+1 vida extra VIP",
+    nerves_cycle_rule: "Empieza en {difficulty} y sube cada ciclo de {count} tableros.",
 
     // Ranking compartido
     rank_weekly_title: "Ranking Semanal",
@@ -1009,6 +1012,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     nerves_lost_round: "Bot won the round",
     nerves_won_round: "Round {n} cleared!",
     nerves_vip_lives: "+1 extra VIP life",
+    nerves_cycle_rule: "Starts on {difficulty} and rises every {count}-board cycle.",
 
     // Shared ranking
     rank_weekly_title: "Weekly Ranking",

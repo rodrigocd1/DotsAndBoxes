@@ -1,7 +1,15 @@
 import { GameController, GameConfig } from "./controller";
 import { render, canvasSize, findLineAtPoint } from "./renderer";
 import { chooseBotMove, botThinkDelay, BotDifficulty, BOT_DIFFICULTIES, getDiffLabel } from "./bot";
-import { calculateStars, getDifficultyLabel, getStage, getStageTitle, isDifficultyIntroStage } from "./arcade-stages";
+import {
+  calculateStars,
+  getDifficultyLabel,
+  getNervesOfSteelBoardRotation,
+  getStage,
+  getStageTitle,
+  isDifficultyIntroStage,
+  NERVES_OF_STEEL_BOARD_CYCLE_SIZE,
+} from "./arcade-stages";
 import {
   ENERGY_REWARD_AMOUNT,
   GOD_MODE_ENABLED,
@@ -22,7 +30,9 @@ import {
   loadVibration, saveVibration, vibrate,
   loadMusicVolume, saveMusicVolume,
   loadMute, saveMute,
+  consumeNervesAttemptIndex,
   isLoggedIn, isVipActive, isFeatureUnlocked, getEffectiveMaxStage,
+  resetNervesProgress,
 } from "./storage";
 import {
   REWARDED_AD_STATUS,
@@ -39,11 +49,11 @@ import {
 import { calculateXp } from "../services/xpSystem";
 import { createLabReport } from "../services/labReport";
 import {
-  NERVES_OF_STEEL_MOVE_TIME_SECONDS, NERVES_OF_STEEL_VIP_EXTRA_TIME_SECONDS,
-  NERVES_OF_STEEL_VIP_EXTRA_LIVES,
+  TIMER_ATTACK_DEFAULT_GRID_SIZE,
   TIMER_ATTACK_DURATION_SECONDS,
   TIMER_ATTACK_UNLOCK_STAGE, RANKED_UNLOCK_STAGE, NERVES_OF_STEEL_UNLOCK_STAGE,
 } from "../config/game-constants";
+import { getNervesOfSteelLives, getNervesOfSteelMoveTime } from "../services/gameModes";
 import { t, getCurrentLang, setLang, LANG_NAMES, Lang } from "./i18n";
 import { Line, lineKey } from "../models/line";
 import "flag-icons/css/flag-icons.min.css";
@@ -161,14 +171,6 @@ function weekRankHTML(entries: WeekRankEntry[], myScore: number, scoreKey: strin
 }
 function formatTimer(s: number): string {
   return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
-}
-function nervesRoundDifficulty(round: number): BotDifficulty {
-  if (round <= 2)  return "muito-facil";
-  if (round <= 5)  return "facil";
-  if (round <= 9)  return "normal";
-  if (round <= 13) return "dificil";
-  if (round <= 17) return "muito-dificil";
-  return "impossivel";
 }
 
 const app = document.getElementById("app")!;
@@ -1528,18 +1530,11 @@ function showTimerAttackScreen(): void {
           return `<button class="btn-diff btn-diff--${m.tier}" data-diff="${k}"><span class="diff-icon">${m.icon}</span>${getDiffLabel(k)}</button>`;
         }).join("")}</div>
       </div>
-      <div class="setup-section">
-        <label class="setup-label">${t("setup_grid")}</label>
-        <div class="grid-size-row">${[3,4,5,6].map(n =>
-          `<button class="btn-grid-size" data-size="${n}"><span class="grid-size-label">${n}×${n}</span>${dotGridHTML(n)}</button>`
-        ).join("")}</div>
-      </div>
       <button class="btn-secondary" id="btn-ta-rank" style="margin-top:4px">🏆 ${t("timer_attack_ranking")}</button>
       <button class="btn-start" id="btn-start" disabled>${t("ta_start")}</button>
     </div>`;
   document.getElementById("btn-back")!.onclick = showMenu;
-  let diff: BotDifficulty | null = null; let sz = 4;
-  (document.querySelector(`[data-size="4"]`) as HTMLElement).classList.add("selected");
+  let diff: BotDifficulty | null = null;
   document.querySelectorAll(".btn-diff").forEach((b) => {
     (b as HTMLElement).onclick = () => {
       document.querySelectorAll(".btn-diff").forEach(x => x.classList.remove("selected"));
@@ -1547,14 +1542,8 @@ function showTimerAttackScreen(): void {
       (document.getElementById("btn-start") as HTMLButtonElement).disabled = false;
     };
   });
-  document.querySelectorAll(".btn-grid-size").forEach((b) => {
-    (b as HTMLElement).onclick = () => {
-      document.querySelectorAll(".btn-grid-size").forEach(x => x.classList.remove("selected"));
-      b.classList.add("selected"); sz = parseInt((b as HTMLElement).dataset["size"]!, 10);
-    };
-  });
   document.getElementById("btn-ta-rank")!.onclick = showTimerAttackRanking;
-  document.getElementById("btn-start")!.onclick = () => { if (diff) startTimerAttackGame(diff, sz); };
+  document.getElementById("btn-start")!.onclick = () => { if (diff) startTimerAttackGame(diff); };
 }
 
 function showNervesRanking(): void {
@@ -1577,8 +1566,9 @@ function showNervesRanking(): void {
 function showNervesOfSteelScreen(): void {
   stopEnergyTimer();
   const isVip = isVipActive();
-  const moveTime = NERVES_OF_STEEL_MOVE_TIME_SECONDS + (isVip ? NERVES_OF_STEEL_VIP_EXTRA_TIME_SECONDS : 0);
-  const lives = 1 + (isVip ? NERVES_OF_STEEL_VIP_EXTRA_LIVES : 0);
+  const moveTime = getNervesOfSteelMoveTime(isVip);
+  const lives = getNervesOfSteelLives(isVip);
+  const startingDifficulty = getDiffLabel(getNervesOfSteelBoardRotation(0).difficulty);
   app.innerHTML = `
     <div class="screen setup-screen">
       <div class="screen-header">
@@ -1591,7 +1581,7 @@ function showNervesOfSteelScreen(): void {
         <div class="mode-info-row">❤️<span>${"❤️".repeat(lives)} ${"vida".concat(lives > 1 ? "s" : "")}</span></div>
         <div class="mode-info-row">⏱<span>${t("nerves_move_time", { s: moveTime })}</span></div>
         ${isVip ? `<div class="mode-info-row">⭐<span>${t("nerves_vip_lives")}</span></div>` : ""}
-        <div class="mode-info-row">📈<span>Dificuldade aumenta a cada rodada</span></div>
+        <div class="mode-info-row">📈<span>${t("nerves_cycle_rule", { difficulty: startingDifficulty, count: NERVES_OF_STEEL_BOARD_CYCLE_SIZE })}</span></div>
         <div class="mode-info-row">🏆<span>${t("nerves_ranking")}</span></div>
       </div>
       <button class="btn-secondary" id="btn-nerves-rank" style="margin-top:4px">🏆 ${t("nerves_ranking")}</button>
@@ -1599,7 +1589,7 @@ function showNervesOfSteelScreen(): void {
     </div>`;
   document.getElementById("btn-back")!.onclick = showMenu;
   document.getElementById("btn-nerves-rank")!.onclick = showNervesRanking;
-  document.getElementById("btn-start")!.onclick = () => startNervesGame(1, lives, 0);
+  document.getElementById("btn-start")!.onclick = startNervesRun;
 }
 
 function showX1Screen(): void {
@@ -1806,23 +1796,38 @@ function startBotGame(difficulty: BotDifficulty, gridSize: number) {
   };
   showGame();
 }
-function startTimerAttackGame(difficulty: BotDifficulty, gridSize: number) {
+function startTimerAttackGame(difficulty: BotDifficulty) {
   clearActiveTimers();
   const palette = getThemePlayerColors();
   session = {
     mode: "timer-attack", botDifficulty: difficulty,
-    controller: new GameController({ gridSize, players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }] }),
+    controller: new GameController({
+      gridSize: TIMER_ATTACK_DEFAULT_GRID_SIZE,
+      players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }],
+    }),
     botPlayerId: "p2", botThinking: false, freeRetry: false, finishShown: false,
     timerSecondsLeft: TIMER_ATTACK_DURATION_SECONDS,
   };
   showGame();
 }
+function startNervesRun() {
+  resetNervesProgress();
+  startNervesGame(1, getNervesOfSteelLives(isVipActive()), 0);
+}
 function startNervesGame(round: number, lives: number, score: number) {
   clearActiveTimers();
   const palette = getThemePlayerColors();
+  const rotation = getNervesOfSteelBoardRotation(consumeNervesAttemptIndex());
   session = {
-    mode: "nerves", botDifficulty: nervesRoundDifficulty(round),
-    controller: new GameController({ gridSize: 4, players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }] }),
+    mode: "nerves", botDifficulty: rotation.difficulty,
+    controller: new GameController({
+      board: {
+        width: rotation.template.width,
+        height: rotation.template.height,
+        cells: rotation.template.cells,
+      },
+      players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }],
+    }),
     botPlayerId: "p2", botThinking: false, freeRetry: false, finishShown: false,
     nervesRound: round, nervesLives: lives, nervesScore: score,
   };
@@ -1842,7 +1847,7 @@ function showGame() {
   clearActiveTimers();
   const s = session; stopEnergyTimer();
   const nervesMoveTime = s.mode === "nerves"
-    ? NERVES_OF_STEEL_MOVE_TIME_SECONDS + (isVipActive() ? NERVES_OF_STEEL_VIP_EXTRA_TIME_SECONDS : 0)
+    ? getNervesOfSteelMoveTime(isVipActive())
     : 0;
   let nervesMoveTickLeft = nervesMoveTime;
   const modeTitle = s.mode === "arcade"
@@ -1892,7 +1897,7 @@ function showGame() {
     const st = s.controller.getState();
     hoverLine = null; clearActiveTimers();
     if (s.mode === "lab") startLabGame(s.botDifficulty!, st.gridSize);
-    else if (s.mode === "timer-attack") startTimerAttackGame(s.botDifficulty!, st.gridSize);
+    else if (s.mode === "timer-attack") startTimerAttackGame(s.botDifficulty!);
     else startBotGame(s.botDifficulty!, st.gridSize);
   });
   document.getElementById("btn-god-game")?.addEventListener("click", () => showGodModeModal(s.stageId));
@@ -2021,7 +2026,7 @@ function showGame() {
       </div>`;
     document.body.appendChild(ov);
     ov.querySelector("#ta-retry")!.addEventListener("click", () => {
-      ov.remove(); startTimerAttackGame(s.botDifficulty!, s.controller.getState().gridSize);
+      ov.remove(); startTimerAttackGame(s.botDifficulty!);
     });
     ov.querySelector("#ta-back")!.addEventListener("click", () => {
       ov.remove(); session = null; hoverLine = null; showTimerAttackScreen();
@@ -2045,8 +2050,7 @@ function showGame() {
     document.body.appendChild(ov);
     ov.querySelector("#nerves-retry")!.addEventListener("click", () => {
       ov.remove();
-      const lives = 1 + (isVipActive() ? NERVES_OF_STEEL_VIP_EXTRA_LIVES : 0);
-      startNervesGame(1, lives, 0);
+      startNervesRun();
     });
     ov.querySelector("#nerves-back")!.addEventListener("click", () => {
       ov.remove(); session = null; hoverLine = null; showNervesOfSteelScreen();

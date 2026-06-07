@@ -16,7 +16,7 @@ export const GOD_MODE_LIMIT_RESET_ENABLED = true;
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const GAME_CONSTANTS = {
-  version: "v0.01.67",
+  version: "v0.01.68",
   energy: {
     max: 10,
     regenMinutes: 2,
@@ -211,6 +211,8 @@ export const COMPETITIVE_RANKS = [
 
 /** Duração do Timer Attack em segundos */
 export const TIMER_ATTACK_DURATION_SECONDS = 180;
+/** Grade fixa usada internamente no Timer Attack */
+export const TIMER_ATTACK_DEFAULT_GRID_SIZE = 4;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // NERVOS DE AÇO
@@ -220,9 +222,9 @@ export const NERVES_OF_STEEL_DISPLAY_NAME = "Nervos de Aço";
 export const NERVES_OF_STEEL_TAGLINE =
   "Uma vida. Tempo correndo. Até onde você aguenta?";
 /** Tempo por jogada em segundos */
-export const NERVES_OF_STEEL_MOVE_TIME_SECONDS = 20;
+export const NERVES_OF_STEEL_MOVE_TIME_SECONDS = 10;
 /** Bônus VIP de tempo extra (segundos) */
-export const NERVES_OF_STEEL_VIP_EXTRA_TIME_SECONDS = 5;
+export const NERVES_OF_STEEL_VIP_EXTRA_TIME_SECONDS = 2;
 /** VIP: vidas extras por tentativa */
 export const NERVES_OF_STEEL_VIP_EXTRA_LIVES = 1;
 

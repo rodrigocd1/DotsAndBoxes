@@ -1,4 +1,4 @@
-import { BotDifficulty } from "./bot";
+import { BOT_DIFFICULTIES, BotDifficulty } from "./bot";
 import { t } from "./i18n";
 import { INITIAL_STAGES, TOTAL_STAGES } from "../config/game-constants";
 
@@ -96,10 +96,20 @@ const RAW_BOARD_TEMPLATES = [
 ] as const;
 
 export const BOARD_TEMPLATES: readonly BoardTemplate[] = RAW_BOARD_TEMPLATES.map(normalizeTemplate);
+export const NERVES_OF_STEEL_BOARD_CYCLE_SIZE = BOARD_TEMPLATES.length;
+export const NERVES_OF_STEEL_DIFFICULTY_LADDER: readonly BotDifficulty[] = BOT_DIFFICULTIES.slice(2);
 
 const STAGES: readonly Stage[] = Array.from({ length: TOTAL_STAGES }, (_, index) =>
   buildStage(index + 1),
 );
+
+export interface NervesOfSteelBoardRotation {
+  readonly attemptIndex: number;
+  readonly cycleIndex: number;
+  readonly templateIndex: number;
+  readonly template: BoardTemplate;
+  readonly difficulty: BotDifficulty;
+}
 
 export function calculateStars(
   playerScore: number,
@@ -133,6 +143,21 @@ export function isDifficultyIntroStage(stageId: number): boolean {
 export function getStage(id: number): Stage {
   const normalizedId = Math.max(1, Math.min(TOTAL_STAGES, Math.floor(id)));
   return STAGES[normalizedId - 1] ?? STAGES[STAGES.length - 1]!;
+}
+
+export function getNervesOfSteelBoardRotation(attemptIndex: number): NervesOfSteelBoardRotation {
+  const normalizedAttemptIndex = Math.max(0, Math.floor(attemptIndex));
+  const templateIndex = normalizedAttemptIndex % NERVES_OF_STEEL_BOARD_CYCLE_SIZE;
+  const cycleIndex = Math.floor(normalizedAttemptIndex / NERVES_OF_STEEL_BOARD_CYCLE_SIZE);
+  const difficultyIndex = Math.min(cycleIndex, NERVES_OF_STEEL_DIFFICULTY_LADDER.length - 1);
+
+  return {
+    attemptIndex: normalizedAttemptIndex,
+    cycleIndex,
+    templateIndex,
+    template: BOARD_TEMPLATES[templateIndex]!,
+    difficulty: NERVES_OF_STEEL_DIFFICULTY_LADDER[difficultyIndex]!,
+  };
 }
 
 function buildStage(id: number): Stage {

@@ -243,6 +243,51 @@ export function msToNextEnergy(): number {
   }
 }
 
+// ── Nervos de Aco: progresso da rotacao de tabuleiros ─────────────────────
+const NERVES_PROGRESS_KEY = "dab_nerves_progress";
+
+export interface NervesProgress {
+  attemptsStarted: number;
+}
+
+function defaultNervesProgress(): NervesProgress {
+  return { attemptsStarted: 0 };
+}
+
+export function loadNervesProgress(): NervesProgress {
+  try {
+    const raw = localStorage.getItem(NERVES_PROGRESS_KEY);
+    if (!raw) return defaultNervesProgress();
+
+    const parsed = JSON.parse(raw) as Partial<NervesProgress>;
+    const attemptsStarted = typeof parsed.attemptsStarted === "number" && Number.isFinite(parsed.attemptsStarted)
+      ? Math.max(0, Math.floor(parsed.attemptsStarted))
+      : 0;
+
+    return { attemptsStarted };
+  } catch {
+    return defaultNervesProgress();
+  }
+}
+
+export function saveNervesProgress(progress: NervesProgress): void {
+  localStorage.setItem(
+    NERVES_PROGRESS_KEY,
+    JSON.stringify({ attemptsStarted: Math.max(0, Math.floor(progress.attemptsStarted)) }),
+  );
+}
+
+export function resetNervesProgress(): void {
+  localStorage.removeItem(NERVES_PROGRESS_KEY);
+}
+
+export function consumeNervesAttemptIndex(): number {
+  const progress = loadNervesProgress();
+  const attemptIndex = progress.attemptsStarted;
+  saveNervesProgress({ attemptsStarted: attemptIndex + 1 });
+  return attemptIndex;
+}
+
 // ── God Mode ──────────────────────────────────────────────────────────────
 
 const GOD_KEY = "dab_god";
@@ -324,4 +369,3 @@ export function getEffectiveMaxStage(): number {
 export function isFeatureUnlocked(requiredStage: number): boolean {
   return getEffectiveMaxStage() >= requiredStage;
 }
-

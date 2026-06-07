@@ -3,9 +3,11 @@ import {
   DIFFICULTY_GROUPS,
   EVEN_STAGE_DIFFICULTY_BOOST,
   INITIAL_STAGES,
+  NERVES_OF_STEEL_BOARD_CYCLE_SIZE,
   TOTAL_STAGES,
   calculateStars,
   getDifficultyLabel,
+  getNervesOfSteelBoardRotation,
   getStage,
   getStageTitle,
   isDifficultyIntroStage,
@@ -69,5 +71,26 @@ describe("arcade stages", () => {
     expect(isDifficultyIntroStage(1)).toBe(true);
     expect(isDifficultyIntroStage(11)).toBe(true);
     expect(isDifficultyIntroStage(12)).toBe(false);
+  });
+
+  it("rota os 10 tabuleiros do Nervos de Aco sem repetir antes do fim do ciclo", () => {
+    const firstCycle = Array.from({ length: NERVES_OF_STEEL_BOARD_CYCLE_SIZE }, (_, index) =>
+      getNervesOfSteelBoardRotation(index),
+    );
+
+    expect(firstCycle.map((entry) => entry.template.id)).toEqual(
+      BOARD_TEMPLATES.map((template) => template.id),
+    );
+    expect(new Set(firstCycle.map((entry) => entry.template.id)).size).toBe(BOARD_TEMPLATES.length);
+    expect(firstCycle.every((entry) => entry.difficulty === "medio")).toBe(true);
+  });
+
+  it("aumenta a dificuldade do Nervos de Aco a cada ciclo completo", () => {
+    expect(getNervesOfSteelBoardRotation(0).difficulty).toBe("medio");
+    expect(getNervesOfSteelBoardRotation(NERVES_OF_STEEL_BOARD_CYCLE_SIZE).difficulty).toBe("dificil");
+    expect(getNervesOfSteelBoardRotation(NERVES_OF_STEEL_BOARD_CYCLE_SIZE * 2).difficulty).toBe("muito-dificil");
+    expect(getNervesOfSteelBoardRotation(NERVES_OF_STEEL_BOARD_CYCLE_SIZE * 3).difficulty).toBe("impossivel");
+    expect(getNervesOfSteelBoardRotation(NERVES_OF_STEEL_BOARD_CYCLE_SIZE * 4).difficulty).toBe("impulsivo");
+    expect(getNervesOfSteelBoardRotation(NERVES_OF_STEEL_BOARD_CYCLE_SIZE * 8).difficulty).toBe("impulsivo");
   });
 });
