@@ -1,0 +1,224 @@
+[2m19:56:01[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [31m[Unhandled error] [1mSyntaxError[22m: The requested module '/src/ui/storage.ts?t=1780786560185' does not provide an export named 'SKIPS_PER_WEEK'
+[39m
+[2m19:56:14[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+[2m19:56:15[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+[39m
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+      at transformWithOxc (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3344:19)
+      at TransformPluginContext.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3415:26)
+      at EnvironmentPluginContainer.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:30387:51)
+      at async loadAndTransform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24646:26)
+      at async viteTransformMiddleware (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24440:20)
+[2m19:56:18[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+[2m19:56:19[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+[39m
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+      at transformWithOxc (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3344:19)
+      at TransformPluginContext.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3415:26)
+      at EnvironmentPluginContainer.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:30387:51)
+      at async loadAndTransform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24646:26)
+      at async viteTransformMiddleware (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24440:20)
+[2m19:56:29[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+[2m19:56:30[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+[39m
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+      at transformWithOxc (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3344:19)
+      at TransformPluginContext.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3415:26)
+      at EnvironmentPluginContainer.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:30387:51)
+      at async loadAndTransform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24646:26)
+      at async viteTransformMiddleware (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24440:20)
+[2m19:56:35[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+[2m19:56:36[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+[39m
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+      at transformWithOxc (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3344:19)
+      at TransformPluginContext.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3415:26)
+      at EnvironmentPluginContainer.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:30387:51)
+      at async loadAndTransform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24646:26)
+      at async viteTransformMiddleware (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24440:20)
+[2m19:56:46[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+[2m19:56:47[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+[39m
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+      at transformWithOxc (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3344:19)
+      at TransformPluginContext.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3415:26)
+      at EnvironmentPluginContainer.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:30387:51)
+      at async loadAndTransform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24646:26)
+      at async viteTransformMiddleware (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24440:20)
+[2m19:57:04[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+[2m19:57:05[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] [0mIdentifier `MAX_ENERGY` has already been declared
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/ui/storage.ts:8:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m  8 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249mM[0m[38;5;249mA[0m[38;5;249mX[0m[38;5;249m_[0m[38;5;249mE[0m[38;5;249mN[0m[38;5;249mE[0m[38;5;249mR[0m[38;5;249mG[0m[38;5;249mY[0m[38;5;249m_[0m[38;5;249mC[0m[38;5;249mO[0m[38;5;249mN[0m[38;5;249mF[0m[38;5;249mI[0m[38;5;249mG[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── `MAX_ENERGY` has already been declared here
+ [38;5;240m    │[0m 
+ [38;5;246m193 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0mMAX_ENERGY[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m0[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬────  
+ [38;5;240m    │[0m                   ╰────── It can not be redeclared here
+[38;5;246m─────╯[0m
+[39m
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/GIT/Repository/DotsAndBoxes/src/ui/storage.ts[39m
+      at transformWithOxc (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3344:19)
+      at TransformPluginContext.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:3415:26)
+      at EnvironmentPluginContainer.transform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:30387:51)
+      at async loadAndTransform (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24646:26)
+      at async viteTransformMiddleware (file:///C:/GIT/Repository/DotsAndBoxes/node_modules/vite/dist/node/chunks/node.js:24440:20)
