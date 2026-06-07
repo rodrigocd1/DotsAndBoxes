@@ -16,7 +16,7 @@ export const GOD_MODE_LIMIT_RESET_ENABLED = true;
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const GAME_CONSTANTS = {
-  version: "v0.01.65",
+  version: "v0.01.66",
   energy: {
     max: 10,
     regenMinutes: 2,

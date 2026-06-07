@@ -255,6 +255,7 @@ export interface GodModeConfig {
   simulateRankedPoints: number | null;
   simulateCompetitiveEnergy: number | null;
   simulatePhotoPermission: boolean | null;
+  autoPlayMode: "win" | "lose" | null;
 }
 
 function defaultGodMode(): GodModeConfig {
@@ -266,6 +267,7 @@ function defaultGodMode(): GodModeConfig {
     simulateRankedPoints: null,
     simulateCompetitiveEnergy: null,
     simulatePhotoPermission: null,
+    autoPlayMode: null,
   };
 }
 

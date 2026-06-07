@@ -750,6 +750,14 @@ function showGodModeModal(currentStageId?: number) {
         <button class="god-refill" id="gz">${t("god_zero_energy")}</button>
       </div>
       <div class="settings-section">
+        <label class="settings-label">IA joga por mim</label>
+        <div class="god-autoplay-row">
+          <button class="god-go ${godMode.autoPlayMode==="win"?"god-autoplay--active":""}" id="god-ap-win">🏆 Jogar para GANHAR</button>
+          <button class="god-skip ${godMode.autoPlayMode==="lose"?"god-autoplay--active":""}" id="god-ap-lose">💀 Jogar para PERDER</button>
+        </div>
+        ${godMode.autoPlayMode ? `<button class="god-refill" id="god-ap-off">⛔ Desativar IA</button>` : ""}
+      </div>
+      <div class="settings-section">
         <label class="settings-label">Resetar Limites</label>
         <button class="god-go" id="god-reset-limits">Resetar Tudo (Dica/Radar/Congelar/Retry/Feedback)</button>
       </div>
@@ -802,6 +810,20 @@ function showGodModeModal(currentStageId?: number) {
     godMode.simulateRankedPoints = null; saveGodMode(godMode);
     (ov.querySelector<HTMLInputElement>("#god-rank-sim")!).value = "";
     showToast("Simulação de ranked removida");
+  });
+
+  // IA joga por mim
+  ov.querySelector("#god-ap-win")?.addEventListener("click", () => {
+    godMode.autoPlayMode = "win"; saveGodMode(godMode);
+    ov.remove(); showToast("🏆 IA jogando para GANHAR");
+  });
+  ov.querySelector("#god-ap-lose")?.addEventListener("click", () => {
+    godMode.autoPlayMode = "lose"; saveGodMode(godMode);
+    ov.remove(); showToast("💀 IA jogando para PERDER");
+  });
+  ov.querySelector("#god-ap-off")?.addEventListener("click", () => {
+    godMode.autoPlayMode = null; saveGodMode(godMode);
+    ov.remove(); showToast("⛔ IA desativada");
   });
 
   // Resetar limites diários
@@ -1808,8 +1830,24 @@ function showGame() {
       if (!session||session!==s) return; const st=s.controller.getState();
       if (st.status==="finished"||!isBotTurn()) return;
       s.controller.playLine(chooseBotMove(st,s.botDifficulty!)); s.botThinking=false; draw();
-      if (isBotTurn()&&s.controller.getState().status!=="finished") scheduleBotMove();
+      if (s.controller.getState().status==="finished") return;
+      if (isBotTurn()) scheduleBotMove();
+      else if (godMode.autoPlayMode) scheduleAutoPlayerMove();
     }, botThinkDelay(s.botDifficulty));
+  }
+
+  function scheduleAutoPlayerMove() {
+    if (!godMode.autoPlayMode) return;
+    const diff: BotDifficulty = godMode.autoPlayMode === "win" ? "impossivel" : "muito-facil";
+    setTimeout(() => {
+      if (!session||session!==s||!godMode.autoPlayMode) return;
+      const st=s.controller.getState();
+      if (st.status==="finished"||isBotTurn()) return;
+      s.controller.playLine(chooseBotMove(st, diff)); draw();
+      if (s.controller.getState().status==="finished") return;
+      if (isBotTurn()) scheduleBotMove();
+      else scheduleAutoPlayerMove(); // fechou caixa, joga de novo
+    }, botThinkDelay(diff));
   }
 
   function handleMove(line: Line) {
@@ -1840,7 +1878,7 @@ function showGame() {
   canvas.addEventListener("mouseleave",()=>{hoverLine=null;draw();canvas.style.cursor="default";});
   canvas.addEventListener("pointerdown",(e) => {
     const st=s.controller.getState();
-    if(st.status==="finished"||s.botThinking||isBotTurn()) return;
+    if(st.status==="finished"||s.botThinking||isBotTurn()||godMode.autoPlayMode) return;
     if(e.pointerType==="mouse" && e.button!==0) return;
     if(e.pointerType!=="mouse") e.preventDefault();
     const hitRadius = e.pointerType==="mouse" ? 24 : TOUCH_HIT;
@@ -1851,6 +1889,7 @@ function showGame() {
   draw();
   if (s.mode === "arcade") startEnergyTimer();
   if (isBotTurn()) scheduleBotMove();
+  else if (godMode.autoPlayMode && s.botPlayerId) scheduleAutoPlayerMove();
 }
 
 // ── CSS ───────────────────────────────────────────────────────────────────
@@ -2843,6 +2882,9 @@ html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
 .god-skip:hover { background: rgba(155,89,182,.25); }
 .god-refill { background: rgba(243,156,18,.1); border: 1px solid rgba(243,156,18,.4); border-radius: 10px; padding: 10px; color: #f39c12; font-weight: 700; cursor: pointer; width: 100%; text-align: center; font-size: .88rem; }
 .god-refill:hover { background: rgba(243,156,18,.2); }
+.god-autoplay-row { display: flex; gap: 8px; width: 100%; }
+.god-autoplay-row .god-go, .god-autoplay-row .god-skip { flex: 1; }
+.god-autoplay--active { outline: 2px solid #fff; outline-offset: 2px; }
 
 /* ── CELEBRAÇÃO ──────────────────────────────────────────────── */
 .stage-intro-card {
