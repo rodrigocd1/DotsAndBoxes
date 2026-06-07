@@ -22,7 +22,7 @@ import {
   loadVibration, saveVibration, vibrate,
   loadMusicVolume, saveMusicVolume,
   loadMute, saveMute,
-  isLoggedIn, isVipActive, isFeatureUnlocked,
+  isLoggedIn, isVipActive, isFeatureUnlocked, getEffectiveMaxStage,
 } from "./storage";
 import {
   REWARDED_AD_STATUS,
@@ -30,6 +30,17 @@ import {
   showRewardedEnergyAd,
   type RewardedAdOutcome,
 } from "./admob";
+import {
+  canUseMasterTip, getMasterTipDailyRemaining, useMasterTip,
+  getRadarStock, canUseRadar, useRadar,
+  canFreezeAi, getDaysUntilFreeze, useFreezeAi,
+  MASTER_TIP_UNLOCK_STAGE, TACTICAL_RADAR_UNLOCK_STAGE,
+} from "../services/powerSystem";
+import { calculateXp } from "../services/xpSystem";
+import {
+  NERVES_OF_STEEL_MOVE_TIME_SECONDS, NERVES_OF_STEEL_VIP_EXTRA_TIME_SECONDS,
+  TIMER_ATTACK_UNLOCK_STAGE, RANKED_UNLOCK_STAGE, NERVES_OF_STEEL_UNLOCK_STAGE,
+} from "../config/game-constants";
 import { t, getCurrentLang, setLang, LANG_NAMES, Lang } from "./i18n";
 import { Line, lineKey } from "../models/line";
 import "flag-icons/css/flag-icons.min.css";
@@ -352,21 +363,49 @@ function pickResultPhrase(tied: boolean): string {
   return list[Math.floor(Math.random() * list.length)]!;
 }
 
+// ── Confirmação de poder ─────────────────────────────────────────────────
+function showPowerConfirm(title: string, detail: string, onConfirm: () => void): void {
+  const ov = document.createElement("div");
+  ov.className = "modal-overlay";
+  ov.innerHTML = `
+    <div class="modal-card power-confirm-card">
+      <div class="power-confirm-title">${title}</div>
+      ${detail ? `<div class="power-confirm-detail">${detail}</div>` : ""}
+      <div class="power-confirm-actions">
+        <button class="btn-power-use" id="pwr-confirm">${t("power_use")}</button>
+        <button class="btn-power-cancel" id="pwr-cancel">${t("power_cancel")}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("#pwr-confirm")?.addEventListener("click", () => { ov.remove(); onConfirm(); });
+  ov.querySelector("#pwr-cancel")?.addEventListener("click",  () => ov.remove());
+  ov.addEventListener("click", (e) => { if (e.target === ov) ov.remove(); });
+}
+
 // ── Celebração ────────────────────────────────────────────────────────────
 function showCelebration(stars: 0|1|2|3, xp: number, label: string, nextId: number|null, onNext: ()=>void, onMap: ()=>void, mainTitle?: string) {
   launchConfetti();
+  const isVip   = isVipActive();
+  const xpCalc  = xp > 0 ? calculateXp(xp, isVip, false) : null;
   const ov = document.createElement("div");
   ov.className = "cel-overlay";
   const starsHtml = [0,1,2].map((i) =>
     `<span class="cel-star ${i < stars ? "earned" : "empty"}" style="animation-delay:${0.4+i*0.25}s">★</span>`
   ).join("");
+  const xpBlock = xpCalc ? `
+    <div class="cel-xp-block">
+      <div class="cel-xp-row"><span>${t("xp_base")}</span><span>+${xpCalc.baseXp}</span></div>
+      ${xpCalc.multiplier !== 1 ? `<div class="cel-xp-row cel-xp-mult"><span>${t("xp_multiplier")}</span><span>${xpCalc.multiplier}x</span></div>` : ""}
+      <div class="cel-xp-total">${t("xp_total")}: <strong>+${xpCalc.totalXp}</strong></div>
+      ${isVip ? `<div class="cel-xp-vip">${t("xp_vip_bonus", { mult: xpCalc.multiplier })}</div>` : ""}
+    </div>` : "";
   ov.innerHTML = `
     <div class="cel-card">
       ${label ? `<div class="cel-label">${label}</div>` : ""}
       <div class="cel-title">${mainTitle ?? t("stage_complete")}</div>
       <div class="cel-stars">${starsHtml}</div>
       <div class="cel-phrase">${pickPhrase(stars)}</div>
-      ${xp > 0 ? `<div class="cel-xp">${t("xp_gained", { xp })}</div>` : ""}
+      ${xpBlock}
       <div class="cel-actions" id="cel-actions">
         ${nextId ? `<button class="btn-cel-next" id="btn-cel-next">${t("next_stage")}</button>` : ""}
         <button class="btn-cel-map" id="btn-cel-map">${t("map")}</button>
@@ -908,6 +947,101 @@ function showThemeSetup() {
   syncSelection();
 }
 
+// ── HELPER: botão de modo extra no menu ───────────────────────────────────
+function menuModeButton(id: string, emoji: string, labelKey: string, subKey: string, unlockStage: number): string {
+  const maxStage = getEffectiveMaxStage();
+  const isUnlocked = maxStage >= unlockStage;
+  const isComingSoon = unlockStage >= 999;
+  return `
+    <button class="btn-menu btn-mode-extra ${!isUnlocked ? "btn-mode--locked" : ""}" id="btn-mode-${id}">
+      <div class="btn-menu-icon-wrap btn-icon--mode">${emoji}</div>
+      <div class="btn-menu-text">
+        <strong>${t(labelKey)}</strong>
+        <small>${isComingSoon ? t("mode_coming_soon") : isUnlocked ? t(subKey) : t("mode_locked_stage", { stage: unlockStage })}</small>
+      </div>
+      ${!isUnlocked ? `<span class="badge-locked">🔒</span>` : ""}
+    </button>`;
+}
+
+// ── BARRA DE PODERES ──────────────────────────────────────────────────────
+function powerBarHTML(): string {
+  const isVip      = isVipActive();
+  const maxStage   = getEffectiveMaxStage();
+  const tipUnlocked   = maxStage >= MASTER_TIP_UNLOCK_STAGE;
+  const radarUnlocked = maxStage >= TACTICAL_RADAR_UNLOCK_STAGE;
+  const tipCount   = tipUnlocked ? getMasterTipDailyRemaining(isVip) : 0;
+  const radarCount = radarUnlocked ? getRadarStock() : 0;
+  const canFreeze  = radarUnlocked && canFreezeAi("vs-bot", isVip);
+  const tipDisabled    = !tipUnlocked || tipCount === 0;
+  const radarDisabled  = !radarUnlocked || radarCount === 0;
+  const freezeDisabled = !radarUnlocked || !canFreeze;
+  return `
+    <div class="power-bar" id="power-bar">
+      <button class="power-btn ${tipDisabled ? "power-btn--disabled" : ""}" id="pwr-tip" title="${t("power_master_tip")}">
+        🧠<span class="power-label">${t("power_master_tip")}</span>
+        <span class="power-count">${tipUnlocked ? tipCount : "🔒"}</span>
+      </button>
+      <button class="power-btn ${radarDisabled ? "power-btn--disabled" : ""}" id="pwr-radar" title="${t("power_radar")}">
+        📡<span class="power-label">${t("power_radar")}</span>
+        <span class="power-count">${radarUnlocked ? radarCount : "🔒"}</span>
+      </button>
+      <button class="power-btn ${freezeDisabled ? "power-btn--disabled" : ""}" id="pwr-freeze" title="${t("power_freeze")}">
+        🧊<span class="power-label">${t("power_freeze")}</span>
+        <span class="power-count">${radarUnlocked ? (canFreeze ? "✓" : getDaysUntilFreeze(isVip) + "d") : "🔒"}</span>
+      </button>
+    </div>`;
+}
+
+function bindPowerBar(): void {
+  const isVip = isVipActive();
+  const maxStage = getEffectiveMaxStage();
+  const tipUnlocked = maxStage >= MASTER_TIP_UNLOCK_STAGE;
+  const radarUnlocked = maxStage >= TACTICAL_RADAR_UNLOCK_STAGE;
+
+  document.getElementById("pwr-tip")?.addEventListener("click", () => {
+    if (!tipUnlocked) { showToast(t("power_locked_stage", { stage: MASTER_TIP_UNLOCK_STAGE })); return; }
+    if (!canUseMasterTip(isVip)) { showToast(t("power_no_tip")); return; }
+    const n = getMasterTipDailyRemaining(isVip);
+    showPowerConfirm(t("power_confirm_tip"), t("power_you_have", { n }), () => {
+      useMasterTip(isVip);
+      showToast(t("power_tip_lang"));
+      refreshPowerBar();
+    });
+  });
+
+  document.getElementById("pwr-radar")?.addEventListener("click", () => {
+    if (!radarUnlocked) { showToast(t("power_locked_stage", { stage: TACTICAL_RADAR_UNLOCK_STAGE })); return; }
+    if (!canUseRadar()) { showToast(t("power_no_radar")); return; }
+    const n = getRadarStock();
+    showPowerConfirm(t("power_confirm_radar"), t("power_you_have", { n }), () => {
+      useRadar();
+      showToast(t("power_radar") + " ✓");
+      refreshPowerBar();
+    });
+  });
+
+  document.getElementById("pwr-freeze")?.addEventListener("click", () => {
+    if (!radarUnlocked) { showToast(t("power_locked_stage", { stage: TACTICAL_RADAR_UNLOCK_STAGE })); return; }
+    if (!canFreezeAi("vs-bot", isVip)) {
+      const days = getDaysUntilFreeze(isVip);
+      showToast(t("power_no_freeze", { days }));
+      return;
+    }
+    showPowerConfirm(t("power_confirm_freeze"), "", () => {
+      useFreezeAi("vs-bot", isVip);
+      showToast(t("power_freeze") + " ✓");
+      refreshPowerBar();
+    });
+  });
+}
+
+function refreshPowerBar(): void {
+  const bar = document.getElementById("power-bar");
+  if (!bar) return;
+  bar.outerHTML = powerBarHTML();
+  bindPowerBar();
+}
+
 function showMenu() {
   stopEnergyTimer(); session = null; hoverLine = null;
   const profile = loadProfile();
@@ -975,6 +1109,13 @@ function showMenu() {
           </button>
         </div>
 
+        <div class="menu-modes-section">
+          ${menuModeButton("ranked",       "🏆", "menu_ranked",       "menu_ranked_sub",       RANKED_UNLOCK_STAGE)}
+          ${menuModeButton("timer-attack", "⏱️", "menu_timer_attack", "menu_timer_attack_sub", TIMER_ATTACK_UNLOCK_STAGE)}
+          ${menuModeButton("nerves",       "🔥", "menu_nerves",       "menu_nerves_sub",        NERVES_OF_STEEL_UNLOCK_STAGE)}
+          ${menuModeButton("x1",           "⚔️", "menu_x1",           "menu_x1_sub",            999)}
+        </div>
+
         ${langSelectorHTML()}
 
         <button class="btn-menu btn-tutorial" id="btn-tutorial">
@@ -1007,6 +1148,22 @@ function showMenu() {
   document.getElementById("btn-profile")?.addEventListener("click", () => showToast("👤 " + t("profile") + " — em breve!"));
   document.getElementById("btn-god-menu")?.addEventListener("click", () => showGodModeModal());
   bindLangSelector();
+
+  document.getElementById("btn-mode-ranked")?.addEventListener("click", () => {
+    if (!isFeatureUnlocked(RANKED_UNLOCK_STAGE)) { showToast(t("mode_locked_stage", { stage: RANKED_UNLOCK_STAGE })); return; }
+    showRankedScreen();
+  });
+  document.getElementById("btn-mode-timer-attack")?.addEventListener("click", () => {
+    if (!isFeatureUnlocked(TIMER_ATTACK_UNLOCK_STAGE)) { showToast(t("mode_locked_stage", { stage: TIMER_ATTACK_UNLOCK_STAGE })); return; }
+    showTimerAttackScreen();
+  });
+  document.getElementById("btn-mode-nerves")?.addEventListener("click", () => {
+    if (!isFeatureUnlocked(NERVES_OF_STEEL_UNLOCK_STAGE)) { showToast(t("mode_locked_stage", { stage: NERVES_OF_STEEL_UNLOCK_STAGE })); return; }
+    showNervesOfSteelScreen();
+  });
+  document.getElementById("btn-mode-x1")?.addEventListener("click", () => {
+    showX1Screen();
+  });
 
   document.getElementById("menu-title")!.addEventListener("click", () => {
     titleClicks++; if (titleTimer) clearTimeout(titleTimer);
@@ -1062,8 +1219,91 @@ function dotGridHTML(n: number): string {
   return `<div class="dot-grid-preview" style="grid-template-columns:repeat(${n},1fr)">${dots}</div>`;
 }
 
+// ── TELAS PLACEHOLDER DE MODOS COMPETITIVOS ───────────────────────────────
+function showRankedScreen(): void {
+  stopEnergyTimer();
+  const loggedIn = isLoggedIn();
+  if (!loggedIn) { showToast(t("ranked_login_required")); return; }
+  app.innerHTML = `
+    <div class="screen setup-screen">
+      <div class="screen-header">
+        <button class="btn-back" id="btn-back">${t("back")}</button>
+        <h2>🏆 ${t("menu_ranked")}</h2>
+        <span class="header-end-spacer"></span>
+      </div>
+      <div class="mode-info-card">
+        <div class="mode-info-row"><span>${t("ranked_current_rank")}</span><strong>—</strong></div>
+        <div class="mode-info-row"><span>${t("ranked_points_label")}</span><strong>0</strong></div>
+        <div class="mode-info-row"><span>${t("ranked_tickets_left", { n: 0 })}</span></div>
+        <div class="mode-anti-p2w">${t("ranked_no_powers")}</div>
+      </div>
+      <p style="color:var(--text-2);font-size:.85rem;text-align:center">${t("mode_coming_soon")}</p>
+    </div>`;
+  document.getElementById("btn-back")!.onclick = showMenu;
+}
+
+function showTimerAttackScreen(): void {
+  stopEnergyTimer();
+  app.innerHTML = `
+    <div class="screen setup-screen">
+      <div class="screen-header">
+        <button class="btn-back" id="btn-back">${t("back")}</button>
+        <h2>⏱️ ${t("menu_timer_attack")}</h2>
+        <span class="header-end-spacer"></span>
+      </div>
+      <div class="mode-info-card">
+        <div class="mode-info-row"><span>${t("timer_attack_duration")}</span></div>
+        <div class="mode-info-row"><span>${t("timer_attack_no_powers")}</span></div>
+        <div class="mode-info-row"><span>${t("timer_attack_ranking")}</span></div>
+      </div>
+      <p style="color:var(--text-2);font-size:.85rem;text-align:center">${t("mode_coming_soon")}</p>
+    </div>`;
+  document.getElementById("btn-back")!.onclick = showMenu;
+}
+
+function showNervesOfSteelScreen(): void {
+  stopEnergyTimer();
+  const isVip = isVipActive();
+  const moveTime = NERVES_OF_STEEL_MOVE_TIME_SECONDS + (isVip ? NERVES_OF_STEEL_VIP_EXTRA_TIME_SECONDS : 0);
+  app.innerHTML = `
+    <div class="screen setup-screen">
+      <div class="screen-header">
+        <button class="btn-back" id="btn-back">${t("back")}</button>
+        <h2>🔥 ${t("menu_nerves")}</h2>
+        <span class="header-end-spacer"></span>
+      </div>
+      <div class="mode-info-card">
+        <div class="mode-tagline">${t("nerves_tagline")}</div>
+        <div class="mode-info-row"><span>${t("nerves_move_time", { s: moveTime })}</span></div>
+        ${isVip ? `<div class="mode-info-row"><span>${t("nerves_vip_pause")}</span></div>` : ""}
+        <div class="mode-info-row"><span>${t("nerves_ranking")}</span></div>
+      </div>
+      <p style="color:var(--text-2);font-size:.85rem;text-align:center">${t("mode_coming_soon")}</p>
+    </div>`;
+  document.getElementById("btn-back")!.onclick = showMenu;
+}
+
+function showX1Screen(): void {
+  stopEnergyTimer();
+  app.innerHTML = `
+    <div class="screen setup-screen">
+      <div class="screen-header">
+        <button class="btn-back" id="btn-back">${t("back")}</button>
+        <h2>⚔️ ${t("x1_coming_soon_title")}</h2>
+        <span class="header-end-spacer"></span>
+      </div>
+      <div class="mode-coming-card">
+        <div class="mode-coming-emoji">⚔️</div>
+        <div class="mode-coming-title">${t("x1_coming_soon_title")}</div>
+        <div class="mode-coming-msg">${t("x1_coming_soon_msg")}</div>
+      </div>
+    </div>`;
+  document.getElementById("btn-back")!.onclick = showMenu;
+}
+
 function showBotSetup() {
   stopEnergyTimer();
+  const isVip = isVipActive();
   app.innerHTML = `
     <div class="screen setup-screen">
       <div class="screen-header">
@@ -1071,22 +1311,50 @@ function showBotSetup() {
         <h2>${sectionTitle(ICO_BARBELL, t("menu_bot"))}</h2>
         <span class="header-end-spacer"></span>
       </div>
-      <div class="setup-section">
-        <label class="setup-label">${t("setup_difficulty")}</label>
-        <div class="diff-grid">${BOT_DIFFICULTIES.map((k) => {
-          const m = DIFF_META[k];
-          return `<button class="btn-diff btn-diff--${m.tier}" data-diff="${k}"><span class="diff-icon">${m.icon}</span>${getDiffLabel(k)}</button>`;
-        }).join("")}</div>
+      <div class="training-tabs">
+        <button class="tab-btn tab-btn--active" id="tab-basic">${t("training_basic")}</button>
+        <button class="tab-btn ${!isVip ? "tab-btn--locked" : ""}" id="tab-vip">${t("training_vip")} ${!isVip ? "🔒" : ""}</button>
       </div>
-      <div class="setup-section">
-        <label class="setup-label">${t("setup_grid")}</label>
-        <div class="grid-size-row">${[3,4,5,6].map(n =>
-          `<button class="btn-grid-size" data-size="${n}"><span class="grid-size-label">${n}×${n}</span>${dotGridHTML(n)}</button>`
-        ).join("")}</div>
+      <div id="panel-basic">
+        <div class="setup-section">
+          <label class="setup-label">${t("setup_difficulty")}</label>
+          <div class="diff-grid">${BOT_DIFFICULTIES.map((k) => {
+            const m = DIFF_META[k];
+            return `<button class="btn-diff btn-diff--${m.tier}" data-diff="${k}"><span class="diff-icon">${m.icon}</span>${getDiffLabel(k)}</button>`;
+          }).join("")}</div>
+        </div>
+        <div class="setup-section">
+          <label class="setup-label">${t("setup_grid")}</label>
+          <div class="grid-size-row">${[3,4,5,6].map(n =>
+            `<button class="btn-grid-size" data-size="${n}"><span class="grid-size-label">${n}×${n}</span>${dotGridHTML(n)}</button>`
+          ).join("")}</div>
+        </div>
+        <button class="btn-start" id="btn-start" disabled>${t("setup_start")}</button>
       </div>
-      <button class="btn-start" id="btn-start" disabled>${t("setup_start")}</button>
+      <div id="panel-vip" style="display:none">
+        ${isVip ? `<div class="setup-section"><p style="color:var(--text-2);font-size:.9rem">${t("training_vip_sub")}</p></div>` : `
+        <div class="vip-locked-banner">
+          <div class="vip-lock-icon">🔒</div>
+          <div class="vip-lock-title">${t("training_vip")}</div>
+          <div class="vip-lock-msg">${t("training_vip_locked_msg")}</div>
+        </div>`}
+      </div>
     </div>`;
   document.getElementById("btn-back")!.onclick = showMenu;
+
+  document.getElementById("tab-basic")?.addEventListener("click", () => {
+    (document.getElementById("tab-basic") as HTMLElement).classList.add("tab-btn--active");
+    (document.getElementById("tab-vip") as HTMLElement).classList.remove("tab-btn--active");
+    (document.getElementById("panel-basic") as HTMLElement).style.display = "";
+    (document.getElementById("panel-vip") as HTMLElement).style.display = "none";
+  });
+  document.getElementById("tab-vip")?.addEventListener("click", () => {
+    (document.getElementById("tab-vip") as HTMLElement).classList.add("tab-btn--active");
+    (document.getElementById("tab-basic") as HTMLElement).classList.remove("tab-btn--active");
+    (document.getElementById("panel-basic") as HTMLElement).style.display = "none";
+    (document.getElementById("panel-vip") as HTMLElement).style.display = "";
+  });
+
   let diff: BotDifficulty | null = null; let sz = 4;
   (document.querySelector(`[data-size="4"]`) as HTMLElement).classList.add("selected");
   document.querySelectorAll(".btn-diff").forEach((b) => {
@@ -1250,6 +1518,7 @@ function showGame() {
         </div>
         <div id="scoreboard" class="scoreboard"></div>
         <div id="status" class="status"></div>
+        ${s.mode === "vs-bot" ? powerBarHTML() : ""}
         ${s.mode === "arcade" ? `<div id="energy-display" class="game-energy-display">${energyHTML()}</div>` : ""}
       </div>
       <div class="canvas-wrapper"><canvas id="board"></canvas></div>
@@ -1266,6 +1535,7 @@ function showGame() {
     startBotGame(s.botDifficulty!, st.gridSize);
   });
   document.getElementById("btn-god-game")?.addEventListener("click", () => showGodModeModal(s.stageId));
+  if (s.mode === "vs-bot") bindPowerBar();
 
   const canvas = document.getElementById("board") as HTMLCanvasElement;
   const ctx = canvas.getContext("2d")!;
@@ -2581,6 +2851,57 @@ html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
   box-shadow: 0 0 0 1px var(--ui-accent-border) inset, var(--ui-accent-glow);
 }
 .btn-restart-corner svg { width: 15px; height: 15px; }
+
+/* ── TREINO TABS (C1) ─────────────────────────────────── */
+.training-tabs { display: flex; gap: 8px; padding: 0 16px 4px; }
+.tab-btn { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg-2); color: var(--text-2); font-size: .88rem; font-weight: 700; cursor: pointer; transition: all .15s; }
+.tab-btn--active { border-color: var(--ui-accent-border); background: var(--ui-accent-soft); color: var(--ui-accent); }
+.tab-btn--locked { opacity: .55; cursor: default; }
+.vip-locked-banner { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 20px 16px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 16px; padding: 24px 20px; text-align: center; }
+.vip-lock-icon { font-size: 2.4rem; }
+.vip-lock-title { font-size: 1.05rem; font-weight: 800; color: var(--text); }
+.vip-lock-msg { font-size: .82rem; color: var(--text-2); line-height: 1.5; }
+
+/* ── BARRA DE PODERES (C2-C6) ────────────────────────── */
+.power-bar { display: flex; gap: 8px; padding: 6px 12px 4px; }
+.power-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 6px 4px; cursor: pointer; font-size: .7rem; transition: all .15s; }
+.power-btn:not(.power-btn--disabled):hover { border-color: var(--ui-accent-border); background: var(--ui-accent-soft); }
+.power-btn--disabled { opacity: .45; cursor: default; }
+.power-label { font-size: .65rem; font-weight: 700; color: var(--text-2); text-align: center; line-height: 1.2; }
+.power-count { font-size: .75rem; font-weight: 800; color: var(--text); }
+
+/* ── CONFIRM POWER (C2-C6) ───────────────────────────── */
+.power-confirm-card { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px 24px; min-width: 260px; text-align: center; }
+.power-confirm-title { font-size: 1rem; font-weight: 800; color: var(--text); }
+.power-confirm-detail { font-size: .85rem; color: var(--text-2); }
+.power-confirm-actions { display: flex; gap: 10px; width: 100%; }
+.btn-power-use { flex: 1; background: var(--ui-accent); border: none; border-radius: 10px; padding: 11px 0; color: #fff; font-weight: 700; font-size: .9rem; cursor: pointer; transition: opacity .15s; }
+.btn-power-use:hover { opacity: .85; }
+.btn-power-cancel { flex: 1; background: var(--bg-3); border: 1px solid var(--border-strong); border-radius: 10px; padding: 11px 0; color: var(--text-2); font-weight: 600; font-size: .9rem; cursor: pointer; }
+
+/* ── XP BREAKDOWN (C7) ───────────────────────────────── */
+.cel-xp-block { display: flex; flex-direction: column; gap: 4px; background: rgba(46,204,113,.08); border: 1px solid rgba(46,204,113,.2); border-radius: 12px; padding: 12px 16px; min-width: 200px; animation: fadeInUp .4s 1.2s both; }
+.cel-xp-row { display: flex; justify-content: space-between; font-size: .85rem; color: var(--text-2); font-weight: 600; }
+.cel-xp-mult { color: #f39c12; }
+.cel-xp-total { font-size: 1rem; font-weight: 800; color: #2ecc71; text-align: center; margin-top: 4px; }
+.cel-xp-vip { font-size: .75rem; color: #9b59b6; font-weight: 700; text-align: center; }
+
+/* ── MENU MODOS EXTRAS (C8-C11) ──────────────────────── */
+.menu-modes-section { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.btn-mode-extra { position: relative; }
+.btn-mode--locked { opacity: .65; }
+.btn-icon--mode { font-size: 1.4rem; }
+.badge-locked { position: absolute; top: 8px; right: 12px; font-size: .85rem; }
+
+/* ── TELAS MODOS (C8-C11) ────────────────────────────── */
+.mode-info-card { display: flex; flex-direction: column; gap: 10px; margin: 12px 16px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.mode-info-row { font-size: .88rem; color: var(--text-2); font-weight: 600; }
+.mode-tagline { font-size: .95rem; font-weight: 800; color: var(--text); line-height: 1.4; }
+.mode-anti-p2w { font-size: .78rem; color: var(--text-3); font-style: italic; margin-top: 4px; }
+.mode-coming-card { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 40px 16px; text-align: center; }
+.mode-coming-emoji { font-size: 3rem; }
+.mode-coming-title { font-size: 1.4rem; font-weight: 900; color: var(--text); }
+.mode-coming-msg { font-size: .9rem; color: var(--text-2); line-height: 1.5; }
 `;
 document.head.appendChild(style);
 

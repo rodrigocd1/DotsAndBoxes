@@ -190,6 +190,75 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     rank_bronze_2:   "Bronze II",
     rank_bronze_1:   "Bronze I",
     rank_beginner:   "Iniciante",
+
+    // Treino
+    training_basic: "Treino Básico",
+    training_basic_sub: "Grades simples · poderes permitidos",
+    training_vip: "Treino VIP",
+    training_vip_sub: "Tabuleiros especiais · sem poderes",
+    training_vip_locked_msg: "Esse tabuleiro faz parte do Passe VIP. Ao assinar, você desbloqueia tabuleiros especiais para treino. Nesses tabuleiros não é permitido usar poderes.",
+
+    // Poderes
+    power_master_tip: "Dica do Mestre",
+    power_radar: "Radar Tático",
+    power_freeze: "Congelar IA",
+    power_use: "Usar",
+    power_cancel: "Cancelar",
+    power_confirm_tip: "Usar 1 Dica do Mestre agora?",
+    power_confirm_radar: "Usar 1 Radar Tático agora?",
+    power_confirm_freeze: "Congelar a IA agora?",
+    power_you_have: "Você tem {n} disponível.",
+    power_locked_stage: "Esse recurso será desbloqueado na Fase {stage}.",
+    power_no_tip: "Sem Dicas do Mestre disponíveis hoje.",
+    power_no_radar: "Sem Radar Tático no estoque.",
+    power_no_freeze: "Congelar IA disponível em {days} dia(s).",
+    power_tip_lang: "Jogada recomendada",
+    power_tip_unavail: "Análise tática indisponível no momento.",
+
+    // XP
+    xp_base: "XP base",
+    xp_multiplier: "Multiplicador",
+    xp_total: "XP total",
+    xp_next_level: "Faltam {xp} XP para o próximo nível",
+    xp_double_offer: "📺 Dobrar XP assistindo anúncio",
+    xp_vip_bonus: "Bônus VIP: {mult}x automático",
+    xp_anti_p2w: "O premium melhora recompensa, não aumenta chance de ganhar!",
+
+    // Modos
+    menu_ranked: "Competitivo",
+    menu_ranked_sub: "Ranqueado · Login obrigatório",
+    menu_timer_attack: "Timer Attack",
+    menu_timer_attack_sub: "3 minutos · Sem poderes",
+    menu_nerves: "Nervos de Aço",
+    menu_nerves_sub: "Uma vida. Tempo correndo.",
+    menu_x1: "X1 Online",
+    menu_x1_sub: "Em breve",
+    mode_locked_stage: "Disponível na Fase {stage}",
+    mode_coming_soon: "Em breve",
+
+    // Ranqueado
+    ranked_login_required: "O modo Competitivo exige login. Faça login para continuar.",
+    ranked_tickets_left: "{n} partidas restantes hoje",
+    ranked_no_tickets: "Limite diário atingido. Volte amanhã.",
+    ranked_points_label: "Pontos",
+    ranked_win_reward: "+{n} energia normal após a partida",
+    ranked_no_powers: "Nenhum poder permitido no modo Ranqueado.",
+    ranked_current_rank: "Rank atual",
+
+    // Timer Attack
+    timer_attack_duration: "3 minutos",
+    timer_attack_no_powers: "Sem poderes neste modo.",
+    timer_attack_ranking: "Ranking Semanal",
+
+    // Nervos de Aço
+    nerves_tagline: "Uma vida. Tempo correndo. Até onde você aguenta?",
+    nerves_move_time: "{s}s por jogada",
+    nerves_vip_pause: "VIP pode pausar e continuar depois",
+    nerves_ranking: "Ranking Semanal",
+
+    // X1
+    x1_coming_soon_title: "X1 Online",
+    x1_coming_soon_msg: "Modo em desenvolvimento. Fique de olho nas atualizações!",
   },
 
   // ────────────────── PORTUGUÊS PORTUGAL ──────────────────
@@ -327,6 +396,75 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     rank_bronze_2:   "Bronze II",
     rank_bronze_1:   "Bronze I",
     rank_beginner:   "Iniciante",
+
+    // Treino
+    training_basic: "Treino Básico",
+    training_basic_sub: "Grades simples · poderes permitidos",
+    training_vip: "Treino VIP",
+    training_vip_sub: "Tabuleiros especiais · sem poderes",
+    training_vip_locked_msg: "Este tabuleiro faz parte do Passe VIP. Ao subscrever, desbloqueia tabuleiros especiais para treino. Nesses tabuleiros não é permitido usar poderes.",
+
+    // Poderes
+    power_master_tip: "Dica do Mestre",
+    power_radar: "Radar Tático",
+    power_freeze: "Congelar IA",
+    power_use: "Usar",
+    power_cancel: "Cancelar",
+    power_confirm_tip: "Usar 1 Dica do Mestre agora?",
+    power_confirm_radar: "Usar 1 Radar Tático agora?",
+    power_confirm_freeze: "Congelar a IA agora?",
+    power_you_have: "Tem {n} disponível.",
+    power_locked_stage: "Este recurso será desbloqueado na Fase {stage}.",
+    power_no_tip: "Sem Dicas do Mestre disponíveis hoje.",
+    power_no_radar: "Sem Radar Tático em stock.",
+    power_no_freeze: "Congelar IA disponível em {days} dia(s).",
+    power_tip_lang: "Jogada recomendada",
+    power_tip_unavail: "Análise tática indisponível de momento.",
+
+    // XP
+    xp_base: "XP base",
+    xp_multiplier: "Multiplicador",
+    xp_total: "XP total",
+    xp_next_level: "Faltam {xp} XP para o próximo nível",
+    xp_double_offer: "📺 Duplicar XP vendo anúncio",
+    xp_vip_bonus: "Bónus VIP: {mult}x automático",
+    xp_anti_p2w: "O premium melhora recompensa, não aumenta hipótese de ganhar!",
+
+    // Modos
+    menu_ranked: "Competitivo",
+    menu_ranked_sub: "Ranqueado · Login obrigatório",
+    menu_timer_attack: "Timer Attack",
+    menu_timer_attack_sub: "3 minutos · Sem poderes",
+    menu_nerves: "Nervos de Aço",
+    menu_nerves_sub: "Uma vida. Tempo a correr.",
+    menu_x1: "X1 Online",
+    menu_x1_sub: "Em breve",
+    mode_locked_stage: "Disponível na Fase {stage}",
+    mode_coming_soon: "Em breve",
+
+    // Ranqueado
+    ranked_login_required: "O modo Competitivo requer login. Faça login para continuar.",
+    ranked_tickets_left: "{n} partidas restantes hoje",
+    ranked_no_tickets: "Limite diário atingido. Volte amanhã.",
+    ranked_points_label: "Pontos",
+    ranked_win_reward: "+{n} energia normal após a partida",
+    ranked_no_powers: "Nenhum poder permitido no modo Ranqueado.",
+    ranked_current_rank: "Rank atual",
+
+    // Timer Attack
+    timer_attack_duration: "3 minutos",
+    timer_attack_no_powers: "Sem poderes neste modo.",
+    timer_attack_ranking: "Ranking Semanal",
+
+    // Nervos de Aço
+    nerves_tagline: "Uma vida. Tempo a correr. Até onde aguenta?",
+    nerves_move_time: "{s}s por jogada",
+    nerves_vip_pause: "VIP pode pausar e continuar depois",
+    nerves_ranking: "Ranking Semanal",
+
+    // X1
+    x1_coming_soon_title: "X1 Online",
+    x1_coming_soon_msg: "Modo em desenvolvimento. Fique atento às atualizações!",
   },
 
   // ────────────────── ESPAÑOL ──────────────────
@@ -464,6 +602,75 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     rank_bronze_2:   "Bronce II",
     rank_bronze_1:   "Bronce I",
     rank_beginner:   "Principiante",
+
+    // Entrenamiento
+    training_basic: "Entrenamiento Básico",
+    training_basic_sub: "Cuadrículas simples · poderes permitidos",
+    training_vip: "Entrenamiento VIP",
+    training_vip_sub: "Tableros especiales · sin poderes",
+    training_vip_locked_msg: "Este tablero es parte del Pase VIP. Al suscribirte, desbloqueas tableros especiales para entrenar. En estos tableros no se permite usar poderes.",
+
+    // Poderes
+    power_master_tip: "Pista del Maestro",
+    power_radar: "Radar Táctico",
+    power_freeze: "Congelar IA",
+    power_use: "Usar",
+    power_cancel: "Cancelar",
+    power_confirm_tip: "¿Usar 1 Pista del Maestro ahora?",
+    power_confirm_radar: "¿Usar 1 Radar Táctico ahora?",
+    power_confirm_freeze: "¿Congelar la IA ahora?",
+    power_you_have: "Tienes {n} disponible.",
+    power_locked_stage: "Este recurso se desbloqueará en la Fase {stage}.",
+    power_no_tip: "Sin Pistas del Maestro disponibles hoy.",
+    power_no_radar: "Sin Radar Táctico en stock.",
+    power_no_freeze: "Congelar IA disponible en {days} día(s).",
+    power_tip_lang: "Jugada recomendada",
+    power_tip_unavail: "Análisis táctico no disponible en este momento.",
+
+    // XP
+    xp_base: "XP base",
+    xp_multiplier: "Multiplicador",
+    xp_total: "XP total",
+    xp_next_level: "Faltan {xp} XP para el siguiente nivel",
+    xp_double_offer: "📺 Duplicar XP viendo anuncio",
+    xp_vip_bonus: "Bono VIP: {mult}x automático",
+    xp_anti_p2w: "¡El premium mejora la recompensa, no aumenta la probabilidad de ganar!",
+
+    // Modos
+    menu_ranked: "Competitivo",
+    menu_ranked_sub: "Clasificatorio · Login obligatorio",
+    menu_timer_attack: "Timer Attack",
+    menu_timer_attack_sub: "3 minutos · Sin poderes",
+    menu_nerves: "Nervios de Acero",
+    menu_nerves_sub: "Una vida. El tiempo corre.",
+    menu_x1: "X1 Online",
+    menu_x1_sub: "Próximamente",
+    mode_locked_stage: "Disponible en la Fase {stage}",
+    mode_coming_soon: "Próximamente",
+
+    // Clasificatorio
+    ranked_login_required: "El modo Competitivo requiere login. Inicia sesión para continuar.",
+    ranked_tickets_left: "{n} partidas restantes hoy",
+    ranked_no_tickets: "Límite diario alcanzado. Vuelve mañana.",
+    ranked_points_label: "Puntos",
+    ranked_win_reward: "+{n} energía normal tras la partida",
+    ranked_no_powers: "Ningún poder permitido en el modo Clasificatorio.",
+    ranked_current_rank: "Rango actual",
+
+    // Timer Attack
+    timer_attack_duration: "3 minutos",
+    timer_attack_no_powers: "Sin poderes en este modo.",
+    timer_attack_ranking: "Ranking Semanal",
+
+    // Nervios de Acero
+    nerves_tagline: "Una vida. El tiempo corre. ¿Hasta dónde aguantas?",
+    nerves_move_time: "{s}s por jugada",
+    nerves_vip_pause: "VIP puede pausar y continuar después",
+    nerves_ranking: "Ranking Semanal",
+
+    // X1
+    x1_coming_soon_title: "X1 Online",
+    x1_coming_soon_msg: "Modo en desarrollo. ¡Estate atento a las actualizaciones!",
   },
 
   // ────────────────── ENGLISH ──────────────────
@@ -601,5 +808,74 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     rank_bronze_2:   "Bronze II",
     rank_bronze_1:   "Bronze I",
     rank_beginner:   "Beginner",
+
+    // Training
+    training_basic: "Basic Training",
+    training_basic_sub: "Simple grids · powers allowed",
+    training_vip: "VIP Training",
+    training_vip_sub: "Special boards · no powers",
+    training_vip_locked_msg: "This board is part of the VIP Pass. Subscribing unlocks special training boards. Powers are not allowed on these boards.",
+
+    // Powers
+    power_master_tip: "Master Tip",
+    power_radar: "Tactical Radar",
+    power_freeze: "Freeze AI",
+    power_use: "Use",
+    power_cancel: "Cancel",
+    power_confirm_tip: "Use 1 Master Tip now?",
+    power_confirm_radar: "Use 1 Tactical Radar now?",
+    power_confirm_freeze: "Freeze the AI now?",
+    power_you_have: "You have {n} available.",
+    power_locked_stage: "This feature unlocks at Stage {stage}.",
+    power_no_tip: "No Master Tips available today.",
+    power_no_radar: "No Tactical Radar in stock.",
+    power_no_freeze: "Freeze AI available in {days} day(s).",
+    power_tip_lang: "Recommended move",
+    power_tip_unavail: "Tactical analysis unavailable right now.",
+
+    // XP
+    xp_base: "Base XP",
+    xp_multiplier: "Multiplier",
+    xp_total: "Total XP",
+    xp_next_level: "{xp} XP until next level",
+    xp_double_offer: "📺 Double XP by watching an ad",
+    xp_vip_bonus: "VIP Bonus: {mult}x automatic",
+    xp_anti_p2w: "Premium improves rewards, not win chance!",
+
+    // Modes
+    menu_ranked: "Competitive",
+    menu_ranked_sub: "Ranked · Login required",
+    menu_timer_attack: "Timer Attack",
+    menu_timer_attack_sub: "3 minutes · No powers",
+    menu_nerves: "Nerves of Steel",
+    menu_nerves_sub: "One life. Clock ticking.",
+    menu_x1: "X1 Online",
+    menu_x1_sub: "Coming soon",
+    mode_locked_stage: "Available at Stage {stage}",
+    mode_coming_soon: "Coming soon",
+
+    // Ranked
+    ranked_login_required: "Competitive mode requires login. Sign in to continue.",
+    ranked_tickets_left: "{n} matches remaining today",
+    ranked_no_tickets: "Daily limit reached. Come back tomorrow.",
+    ranked_points_label: "Points",
+    ranked_win_reward: "+{n} normal energy after the match",
+    ranked_no_powers: "No powers allowed in Ranked mode.",
+    ranked_current_rank: "Current rank",
+
+    // Timer Attack
+    timer_attack_duration: "3 minutes",
+    timer_attack_no_powers: "No powers in this mode.",
+    timer_attack_ranking: "Weekly Ranking",
+
+    // Nerves of Steel
+    nerves_tagline: "One life. Clock ticking. How far can you go?",
+    nerves_move_time: "{s}s per move",
+    nerves_vip_pause: "VIP can pause and resume later",
+    nerves_ranking: "Weekly Ranking",
+
+    // X1
+    x1_coming_soon_title: "X1 Online",
+    x1_coming_soon_msg: "Mode under development. Stay tuned for updates!",
   },
 };
