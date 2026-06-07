@@ -2887,7 +2887,11 @@ html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
 .cel-xp-vip { font-size: .75rem; color: #9b59b6; font-weight: 700; text-align: center; }
 
 /* ── MENU MODOS EXTRAS (C8-C11) ──────────────────────── */
-.menu-modes-section { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.menu-modes-section { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+.menu-modes-section .btn-menu { flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; text-align: center; }
+.menu-modes-section .btn-menu-text { align-items: center; }
+.menu-modes-section .btn-menu-text small { font-size: .68rem; line-height: 1.2; }
+.menu-modes-section .btn-icon--mode { width: 40px; height: 40px; border-radius: 12px; }
 .btn-mode-extra { position: relative; }
 .btn-mode--locked { opacity: .65; }
 .btn-icon--mode { font-size: 1.4rem; }
