@@ -2893,6 +2893,66 @@ html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
 .btn-icon--mode { font-size: 1.4rem; }
 .badge-locked { position: absolute; top: 8px; right: 12px; font-size: .85rem; }
 
+/* Ranked — ouro */
+#btn-mode-ranked {
+  background: rgba(0,0,0,.82); border: 1.5px solid rgba(234,179,8,.5);
+  box-shadow: 0 0 14px rgba(234,179,8,.12);
+}
+#btn-mode-ranked:hover { border-color: #eab308; background: rgba(0,0,0,.9); box-shadow: 0 0 22px rgba(234,179,8,.22); }
+#btn-mode-ranked .btn-menu-icon-wrap { background: rgba(234,179,8,.14); border: 1.5px solid rgba(234,179,8,.5); }
+
+/* Timer Attack — laranja */
+#btn-mode-timer-attack {
+  background: rgba(0,0,0,.82); border: 1.5px solid rgba(249,115,22,.5);
+  box-shadow: 0 0 14px rgba(249,115,22,.12);
+}
+#btn-mode-timer-attack:hover { border-color: #f97316; background: rgba(0,0,0,.9); box-shadow: 0 0 22px rgba(249,115,22,.22); }
+#btn-mode-timer-attack .btn-menu-icon-wrap { background: rgba(249,115,22,.14); border: 1.5px solid rgba(249,115,22,.5); }
+
+/* Nervos de Aço — vermelho */
+#btn-mode-nerves {
+  background: rgba(0,0,0,.82); border: 1.5px solid rgba(239,68,68,.5);
+  box-shadow: 0 0 14px rgba(239,68,68,.12);
+}
+#btn-mode-nerves:hover { border-color: #ef4444; background: rgba(0,0,0,.9); box-shadow: 0 0 22px rgba(239,68,68,.22); }
+#btn-mode-nerves .btn-menu-icon-wrap { background: rgba(239,68,68,.14); border: 1.5px solid rgba(239,68,68,.5); }
+
+/* X1 Online — slate */
+#btn-mode-x1 {
+  background: rgba(0,0,0,.82); border: 1.5px solid rgba(100,116,139,.5);
+  box-shadow: 0 0 14px rgba(100,116,139,.12);
+}
+#btn-mode-x1:hover { border-color: #64748b; background: rgba(0,0,0,.9); box-shadow: 0 0 22px rgba(100,116,139,.22); }
+#btn-mode-x1 .btn-menu-icon-wrap { background: rgba(100,116,139,.14); border: 1.5px solid rgba(100,116,139,.5); }
+
+/* Tema light — modos extras */
+html[data-theme="light"] #btn-mode-ranked,
+html[data-theme="light"] #btn-mode-timer-attack,
+html[data-theme="light"] #btn-mode-nerves,
+html[data-theme="light"] #btn-mode-x1 { background: #e8dcc8; border-color: var(--ui-accent-border); box-shadow: 0 0 14px rgba(245,158,11,.12); }
+html[data-theme="light"] #btn-mode-ranked:hover,
+html[data-theme="light"] #btn-mode-timer-attack:hover,
+html[data-theme="light"] #btn-mode-nerves:hover,
+html[data-theme="light"] #btn-mode-x1:hover { background: #d4c4a8; border-color: var(--ui-accent); box-shadow: 0 0 22px var(--ui-accent-soft); }
+html[data-theme="light"] #btn-mode-ranked .btn-menu-icon-wrap,
+html[data-theme="light"] #btn-mode-timer-attack .btn-menu-icon-wrap,
+html[data-theme="light"] #btn-mode-nerves .btn-menu-icon-wrap,
+html[data-theme="light"] #btn-mode-x1 .btn-menu-icon-wrap { background: var(--ui-accent-soft); border-color: var(--ui-accent-border); color: var(--ui-accent); }
+
+/* Tema pink — modos extras */
+html[data-theme="pink"] #btn-mode-ranked,
+html[data-theme="pink"] #btn-mode-timer-attack,
+html[data-theme="pink"] #btn-mode-nerves,
+html[data-theme="pink"] #btn-mode-x1 { background: #fbcfe8; border-color: var(--ui-accent-border); box-shadow: 0 0 14px rgba(236,72,153,.12); }
+html[data-theme="pink"] #btn-mode-ranked:hover,
+html[data-theme="pink"] #btn-mode-timer-attack:hover,
+html[data-theme="pink"] #btn-mode-nerves:hover,
+html[data-theme="pink"] #btn-mode-x1:hover { background: #f9a8d4; border-color: var(--ui-accent); box-shadow: 0 0 22px var(--ui-accent-soft); }
+html[data-theme="pink"] #btn-mode-ranked .btn-menu-icon-wrap,
+html[data-theme="pink"] #btn-mode-timer-attack .btn-menu-icon-wrap,
+html[data-theme="pink"] #btn-mode-nerves .btn-menu-icon-wrap,
+html[data-theme="pink"] #btn-mode-x1 .btn-menu-icon-wrap { background: var(--ui-accent-soft); border-color: var(--ui-accent-border); color: var(--ui-accent); }
+
 /* ── TELAS MODOS (C8-C11) ────────────────────────────── */
 .mode-info-card { display: flex; flex-direction: column; gap: 10px; margin: 12px 16px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
 .mode-info-row { font-size: .88rem; color: var(--text-2); font-weight: 600; }
