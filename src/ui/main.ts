@@ -1807,7 +1807,7 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
   box-shadow: 0 0 0 1px rgba(255,255,255,.02) inset;
   white-space: nowrap;
 }
-.btn-settings-pill svg { width: 16px; height: 16px; flex-shrink: 0; }
+.btn-settings-pill svg { width: 22px; height: 22px; flex-shrink: 0; }
 .btn-settings-pill:hover {
   background: var(--bg-3); color: var(--ui-accent); transform: translateY(-1px);
   box-shadow: 0 0 0 1px var(--ui-accent-border) inset, var(--ui-accent-glow);
@@ -2275,8 +2275,8 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
     font-size: .7rem;
   }
   .btn-settings-pill svg {
-    width: 15px;
-    height: 15px;
+    width: 20px;
+    height: 20px;
   }
   .btn-profile-icon {
     width: 34px;
