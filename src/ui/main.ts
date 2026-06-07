@@ -1969,7 +1969,7 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
   background: var(--bg-2); border: 1px solid var(--border-strong);
   border-radius: 16px; padding: 12px 20px;
   box-shadow: var(--shadow); transition: background .3s;
-  width: 33.33%; min-width: 160px; margin: 0 auto;
+  width: 44%; min-width: 180px; margin: 0 auto;
 }
 .rank-ring-wrap {
   position: relative; width: 54px; height: 54px;
