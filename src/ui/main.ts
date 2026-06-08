@@ -2,6 +2,8 @@ import { GameController, GameConfig } from "./controller";
 import { render, canvasSize, findLineAtPoint } from "./renderer";
 import { chooseBotMove, botThinkDelay, BotDifficulty, BOT_DIFFICULTIES, getDiffLabel } from "./bot";
 import {
+  BoardTemplate,
+  buildTimerAttackCourse,
   calculateStars,
   getDifficultyLabel,
   getNervesOfSteelBoardRotation,
@@ -9,6 +11,7 @@ import {
   getStageTitle,
   isDifficultyIntroStage,
   NERVES_OF_STEEL_BOARD_CYCLE_SIZE,
+  TIMER_ATTACK_BOARD_COUNT,
 } from "./arcade-stages";
 import {
   ENERGY_REWARD_AMOUNT,
@@ -49,8 +52,7 @@ import {
 import { calculateXp } from "../services/xpSystem";
 import { createLabReport } from "../services/labReport";
 import {
-  TIMER_ATTACK_DEFAULT_GRID_SIZE,
-  TIMER_ATTACK_DURATION_SECONDS,
+  TIMER_ATTACK_TOTAL_BOARDS,
   TIMER_ATTACK_UNLOCK_STAGE, RANKED_UNLOCK_STAGE, NERVES_OF_STEEL_UNLOCK_STAGE,
 } from "../config/game-constants";
 import { getNervesOfSteelLives, getNervesOfSteelMoveTime } from "../services/gameModes";
@@ -114,7 +116,11 @@ interface GameSession {
   maxChain?: number; // max caixas fechadas pelo humano em um único turno (arcade)
   finishShown: boolean;
   // Timer Attack
-  timerSecondsLeft?: number;
+  timerAttackCourse?: readonly BoardTemplate[];
+  timerAttackBoardIndex?: number;
+  timerAttackBoardTimesMs?: readonly number[];
+  timerAttackCurrentBoardStartedAtMs?: number;
+  timerAttackBestTotalMs?: number | null;
   // Nervos de Aço
   nervesRound?: number;
   nervesLives?: number;
@@ -136,29 +142,47 @@ function clearActiveTimers() {
 // ── Ranking semanal local ─────────────────────────────────────────────────
 const TA_RANKING_KEY      = "dab_ta_rank";
 const NERVES_RANKING_KEY  = "dab_nerves_rank";
-interface WeekRankEntry { name: string; score: number; date: number; }
+interface ScoreWeekRankEntry { name: string; score: number; date: number; }
+interface TimerAttackRankEntry {
+  name: string;
+  totalTimeMs: number;
+  boardTimesMs: readonly number[];
+  difficulty: BotDifficulty;
+  date: number;
+}
 
 function rankWeekStart(): number {
   const d = new Date(); d.setHours(0,0,0,0);
   d.setDate(d.getDate() - ((d.getDay()+6)%7));
   return d.getTime();
 }
-function loadWeekRanking(key: string): WeekRankEntry[] {
+function loadWeekRanking<T>(key: string): T[] {
   try {
     const raw = localStorage.getItem(key); if (!raw) return [];
-    const data = JSON.parse(raw) as { weekStart: number; entries: WeekRankEntry[] };
+    const data = JSON.parse(raw) as { weekStart: number; entries: T[] };
     return data.weekStart >= rankWeekStart() ? data.entries : [];
   } catch { return []; }
 }
-function addWeekRankEntry(key: string, entry: WeekRankEntry): WeekRankEntry[] {
-  const entries = loadWeekRanking(key);
+function saveWeekRanking<T>(key: string, entries: readonly T[]): void {
+  localStorage.setItem(key, JSON.stringify({ weekStart: rankWeekStart(), entries }));
+}
+function addScoreWeekRankEntry(key: string, entry: ScoreWeekRankEntry): ScoreWeekRankEntry[] {
+  const entries = loadWeekRanking<ScoreWeekRankEntry>(key);
   entries.push(entry);
   entries.sort((a,b) => b.score - a.score);
   const top = entries.slice(0, 10);
-  localStorage.setItem(key, JSON.stringify({ weekStart: rankWeekStart(), entries: top }));
+  saveWeekRanking(key, top);
   return top;
 }
-function weekRankHTML(entries: WeekRankEntry[], myScore: number, scoreKey: string): string {
+function addTimerAttackRankEntry(key: string, entry: TimerAttackRankEntry): TimerAttackRankEntry[] {
+  const entries = loadWeekRanking<TimerAttackRankEntry>(key);
+  entries.push(entry);
+  entries.sort((a, b) => a.totalTimeMs - b.totalTimeMs);
+  const top = entries.slice(0, 10);
+  saveWeekRanking(key, top);
+  return top;
+}
+function scoreWeekRankHTML(entries: ScoreWeekRankEntry[], myScore: number, scoreKey: string): string {
   if (!entries.length) return `<p class="rank-empty">${t("rank_no_entries")}</p>`;
   const medals = ["🥇","🥈","🥉"];
   const myIdx = entries.findIndex(e => e.score === myScore);
@@ -169,8 +193,38 @@ function weekRankHTML(entries: WeekRankEntry[], myScore: number, scoreKey: strin
       <span class="rank-score">${t(scoreKey, {n: e.score})}</span>
     </div>`).join("")}</div>`;
 }
-function formatTimer(s: number): string {
-  return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+function timerAttackRankHTML(entries: TimerAttackRankEntry[], myTotalTimeMs: number | null): string {
+  if (!entries.length) return `<p class="rank-empty">${t("rank_no_entries")}</p>`;
+  const medals = ["🥇","🥈","🥉"];
+  const myIdx = myTotalTimeMs == null ? -1 : entries.findIndex((entry) => entry.totalTimeMs === myTotalTimeMs);
+  return `<div class="rank-table">${entries.map((entry, index) => `
+    <div class="rank-row${index === myIdx ? " rank-row--me" : ""}">
+      <span class="rank-pos">${index < 3 ? medals[index]! : `${index+1}.`}</span>
+      <span class="rank-name">${entry.name}</span>
+      <span class="rank-score">${formatTimerAttackTime(entry.totalTimeMs)}<small class="rank-score-sub">${getDiffLabel(entry.difficulty)}</small></span>
+    </div>`).join("")}</div>`;
+}
+function formatTimerAttackTime(totalMs: number): string {
+  const totalCentiseconds = Math.max(0, Math.floor(totalMs / 10));
+  const minutes = Math.floor(totalCentiseconds / 6000);
+  const seconds = Math.floor((totalCentiseconds % 6000) / 100);
+  const centiseconds = totalCentiseconds % 100;
+  return `${String(minutes).padStart(2,"0")}:${String(seconds).padStart(2,"0")}.${String(centiseconds).padStart(2,"0")}`;
+}
+function getTimerAttackBoardElapsedMs(s: GameSession, nowMs = Date.now()): number {
+  return s.timerAttackCurrentBoardStartedAtMs == null
+    ? 0
+    : Math.max(0, nowMs - s.timerAttackCurrentBoardStartedAtMs);
+}
+function getTimerAttackCompletedTimeMs(s: GameSession): number {
+  return (s.timerAttackBoardTimesMs ?? []).reduce((sum, timeMs) => sum + timeMs, 0);
+}
+function getTimerAttackTotalTimeMs(s: GameSession, nowMs = Date.now()): number {
+  return getTimerAttackCompletedTimeMs(s) + getTimerAttackBoardElapsedMs(s, nowMs);
+}
+function getTimerAttackBestTotalMs(): number | null {
+  const bestEntry = loadWeekRanking<TimerAttackRankEntry>(TA_RANKING_KEY)[0];
+  return bestEntry?.totalTimeMs ?? null;
 }
 
 const app = document.getElementById("app")!;
@@ -1493,7 +1547,7 @@ function showRankedScreen(): void {
 }
 
 function showTimerAttackRanking(): void {
-  const entries = loadWeekRanking(TA_RANKING_KEY);
+  const entries = loadWeekRanking<TimerAttackRankEntry>(TA_RANKING_KEY);
   const ov = document.createElement("div");
   ov.className = "result-overlay";
   ov.innerHTML = `
@@ -1502,7 +1556,7 @@ function showTimerAttackRanking(): void {
         <span>${ICO_STOPWATCH} ${t("rank_weekly_title")}</span>
         <button class="modal-close" id="ta-rank-close">✕</button>
       </div>
-      ${weekRankHTML(entries, -1, "ta_score_label")}
+      ${timerAttackRankHTML(entries, null)}
     </div>`;
   document.body.appendChild(ov);
   ov.querySelector("#ta-rank-close")!.addEventListener("click", () => ov.remove());
@@ -1519,7 +1573,9 @@ function showTimerAttackScreen(): void {
         <span class="header-end-spacer"></span>
       </div>
       <div class="mode-info-card">
-        <div class="mode-info-row">${ICO_STOPWATCH}<span>${t("timer_attack_duration")}</span></div>
+        <div class="mode-info-row">${ICO_STOPWATCH}<span>${t("timer_attack_goal", { n: TIMER_ATTACK_TOTAL_BOARDS })}</span></div>
+        <div class="mode-info-row">🧩<span>${t("timer_attack_board_times")}</span></div>
+        <div class="mode-info-row">🏁<span>${t("timer_attack_total_ranking")}</span></div>
         <div class="mode-info-row">🚫<span>${t("timer_attack_no_powers")}</span></div>
         <div class="mode-info-row">🏆<span>${t("timer_attack_ranking")}</span></div>
       </div>
@@ -1543,11 +1599,11 @@ function showTimerAttackScreen(): void {
     };
   });
   document.getElementById("btn-ta-rank")!.onclick = showTimerAttackRanking;
-  document.getElementById("btn-start")!.onclick = () => { if (diff) startTimerAttackGame(diff); };
+  document.getElementById("btn-start")!.onclick = () => { if (diff) startTimerAttackRun(diff); };
 }
 
 function showNervesRanking(): void {
-  const entries = loadWeekRanking(NERVES_RANKING_KEY);
+  const entries = loadWeekRanking<ScoreWeekRankEntry>(NERVES_RANKING_KEY);
   const ov = document.createElement("div");
   ov.className = "result-overlay";
   ov.innerHTML = `
@@ -1556,7 +1612,7 @@ function showNervesRanking(): void {
         <span>${ICO_FLAME} ${t("rank_weekly_title")}</span>
         <button class="modal-close" id="nerves-rank-close">✕</button>
       </div>
-      ${weekRankHTML(entries, -1, "nerves_rounds_survived")}
+      ${scoreWeekRankHTML(entries, -1, "nerves_rounds_survived")}
     </div>`;
   document.body.appendChild(ov);
   ov.querySelector("#nerves-rank-close")!.addEventListener("click", () => ov.remove());
@@ -1796,17 +1852,36 @@ function startBotGame(difficulty: BotDifficulty, gridSize: number) {
   };
   showGame();
 }
-function startTimerAttackGame(difficulty: BotDifficulty) {
+function startTimerAttackRun(difficulty: BotDifficulty) {
+  const course = buildTimerAttackCourse().boards;
+  startTimerAttackGame(difficulty, course, 0, [], getTimerAttackBestTotalMs());
+}
+function startTimerAttackGame(
+  difficulty: BotDifficulty,
+  course: readonly BoardTemplate[],
+  boardIndex: number,
+  boardTimesMs: readonly number[],
+  bestTotalMs: number | null,
+) {
   clearActiveTimers();
   const palette = getThemePlayerColors();
+  const board = course[boardIndex]!;
   session = {
     mode: "timer-attack", botDifficulty: difficulty,
     controller: new GameController({
-      gridSize: TIMER_ATTACK_DEFAULT_GRID_SIZE,
+      board: {
+        width: board.width,
+        height: board.height,
+        cells: board.cells,
+      },
       players: [{ name: t("you"), color: palette[0] }, { name: t("bot"), color: palette[1] }],
     }),
     botPlayerId: "p2", botThinking: false, freeRetry: false, finishShown: false,
-    timerSecondsLeft: TIMER_ATTACK_DURATION_SECONDS,
+    timerAttackCourse: course,
+    timerAttackBoardIndex: boardIndex,
+    timerAttackBoardTimesMs: [...boardTimesMs],
+    timerAttackCurrentBoardStartedAtMs: Date.now(),
+    timerAttackBestTotalMs: bestTotalMs,
   };
   showGame();
 }
@@ -1850,6 +1925,8 @@ function showGame() {
     ? getNervesOfSteelMoveTime(isVipActive())
     : 0;
   let nervesMoveTickLeft = nervesMoveTime;
+  const timerAttackBoardNumber = (s.timerAttackBoardIndex ?? 0) + 1;
+  const timerAttackBoardTotal = s.timerAttackCourse?.length ?? TIMER_ATTACK_BOARD_COUNT;
   const modeTitle = s.mode === "arcade"
     ? sectionTitle(ICO_STAR, getStageTitle(getStage(s.stageId!)))
     : s.mode === "vs-bot"
@@ -1875,7 +1952,21 @@ function showGame() {
         </div>
         <div id="scoreboard" class="scoreboard"></div>
         <div id="status" class="status"></div>
-        ${s.mode === "timer-attack" ? `<div id="ta-timer" class="ta-timer">${formatTimer(s.timerSecondsLeft!)}</div>` : ""}
+        ${s.mode === "timer-attack" ? `
+          <div class="ta-hud">
+            <span class="ta-progress">${t("timer_attack_challenge_progress", { current: timerAttackBoardNumber, total: timerAttackBoardTotal })}</span>
+            <div class="ta-metrics">
+              <span class="ta-metric">
+                <strong>${t("timer_attack_current_time")}</strong>
+                <span id="ta-current-timer" class="ta-timer">${formatTimerAttackTime(getTimerAttackBoardElapsedMs(s))}</span>
+              </span>
+              <span class="ta-metric">
+                <strong>${t("timer_attack_total_time")}</strong>
+                <span id="ta-total-timer" class="ta-timer">${formatTimerAttackTime(getTimerAttackTotalTimeMs(s))}</span>
+              </span>
+            </div>
+            ${s.timerAttackBestTotalMs != null ? `<span class="ta-best">${t("timer_attack_best_time", { time: formatTimerAttackTime(s.timerAttackBestTotalMs) })}</span>` : ""}
+          </div>` : ""}
         ${s.mode === "nerves" ? `<div class="nerves-hud"><span class="nerves-lives" id="nerves-lives">${"❤️".repeat(s.nervesLives!)}</span><span class="nerves-round-badge" id="nerves-round-badge">${t("nerves_round",{n:s.nervesRound!})}</span><span class="nerves-mtimer ${nervesMoveTickLeft <= 5 ? "nerves-mtimer--danger" : ""}" id="nerves-mtimer">${nervesMoveTime}s</span></div>` : ""}
         ${(s.mode === "vs-bot" || s.mode === "lab") ? powerBarHTML() : ""}
         ${s.mode === "arcade" ? `<div id="energy-display" class="game-energy-display">${energyHTML()}</div>` : ""}
@@ -1897,7 +1988,7 @@ function showGame() {
     const st = s.controller.getState();
     hoverLine = null; clearActiveTimers();
     if (s.mode === "lab") startLabGame(s.botDifficulty!, st.gridSize);
-    else if (s.mode === "timer-attack") startTimerAttackGame(s.botDifficulty!);
+    else if (s.mode === "timer-attack") startTimerAttackRun(s.botDifficulty!);
     else startBotGame(s.botDifficulty!, st.gridSize);
   });
   document.getElementById("btn-god-game")?.addEventListener("click", () => showGodModeModal(s.stageId));
@@ -1987,10 +2078,38 @@ function showGame() {
     } else if (s.mode === "timer-attack") {
       clearActiveTimers();
       const you = st.players.find((p)=>p.id!==s.botPlayerId)!;
-      const myScore = you.score;
-      const playerName = loadProfile().name;
-      const ranking = addWeekRankEntry(TA_RANKING_KEY, { name: playerName, score: myScore, date: Date.now() });
-      showTimerAttackResultOverlay(myScore, ranking);
+      const bot2 = st.players.find((p)=>p.id===s.botPlayerId)!;
+      const won = you.score > bot2.score;
+      if (!won) {
+        showTimerAttackFailureOverlay((s.timerAttackBoardIndex ?? 0) + 1);
+        return;
+      }
+      const currentBoardTimeMs = getTimerAttackBoardElapsedMs(s);
+      const updatedBoardTimes = [...(s.timerAttackBoardTimesMs ?? []), currentBoardTimeMs];
+      const nextBoardIndex = (s.timerAttackBoardIndex ?? 0) + 1;
+      if (nextBoardIndex < (s.timerAttackCourse?.length ?? 0)) {
+        showToast(t("timer_attack_board_cleared", { current: nextBoardIndex, total: s.timerAttackCourse!.length }));
+        window.setTimeout(() => {
+          if (session !== s) return;
+          startTimerAttackGame(
+            s.botDifficulty!,
+            s.timerAttackCourse!,
+            nextBoardIndex,
+            updatedBoardTimes,
+            s.timerAttackBestTotalMs ?? getTimerAttackBestTotalMs(),
+          );
+        }, 600);
+        return;
+      }
+      const totalTimeMs = updatedBoardTimes.reduce((sum, timeMs) => sum + timeMs, 0);
+      const ranking = addTimerAttackRankEntry(TA_RANKING_KEY, {
+        name: loadProfile().name,
+        totalTimeMs,
+        boardTimesMs: updatedBoardTimes,
+        difficulty: s.botDifficulty!,
+        date: Date.now(),
+      });
+      showTimerAttackResultOverlay(totalTimeMs, updatedBoardTimes, ranking);
     } else if (s.mode === "nerves") {
       clearActiveTimers();
       const you  = st.players.find((p)=>p.id!==s.botPlayerId)!;
@@ -2010,15 +2129,27 @@ function showGame() {
     }
   }
 
-  function showTimerAttackResultOverlay(myScore: number, ranking: WeekRankEntry[]) {
+  function timerAttackBoardTimesHTML(boardTimesMs: readonly number[]): string {
+    return `<div class="ta-board-times">${boardTimesMs.map((timeMs, index) => `
+      <div class="ta-board-time-row">
+        <span>${t("timer_attack_challenge_progress", { current: index + 1, total: TIMER_ATTACK_TOTAL_BOARDS })}</span>
+        <strong>${formatTimerAttackTime(timeMs)}</strong>
+      </div>`).join("")}</div>`;
+  }
+
+  function showTimerAttackResultOverlay(totalTimeMs: number, boardTimesMs: readonly number[], ranking: TimerAttackRankEntry[]) {
     const ov = document.createElement("div");
     ov.className = "result-overlay";
     ov.innerHTML = `
       <div class="result-card">
-        <div class="result-header"><span>${ICO_STOPWATCH} ${t("ta_result_title")}</span></div>
-        <div class="result-score-big">${t("ta_score_label", {n: myScore})}</div>
+        <div class="result-header"><span>${ICO_STOPWATCH} ${t("ta_completed_title")}</span></div>
+        <div class="result-score-big">${formatTimerAttackTime(totalTimeMs)}</div>
+        <div class="result-rank-title">${t("ta_total_time_label")}</div>
+        <div class="ta-total-time-label">${t("setup_difficulty")}: ${getDiffLabel(s.botDifficulty!)}</div>
+        <div class="result-rank-title">${t("timer_attack_board_times_title")}</div>
+        ${timerAttackBoardTimesHTML(boardTimesMs)}
         <div class="result-rank-title">${t("rank_weekly_title")}</div>
-        ${weekRankHTML(ranking, myScore, "ta_score_label")}
+        ${timerAttackRankHTML(ranking, totalTimeMs)}
         <div class="result-actions">
           <button class="btn-start" id="ta-retry">${t("ta_play_again")}</button>
           <button class="btn-secondary" id="ta-back">${t("back")}</button>
@@ -2026,14 +2157,36 @@ function showGame() {
       </div>`;
     document.body.appendChild(ov);
     ov.querySelector("#ta-retry")!.addEventListener("click", () => {
-      ov.remove(); startTimerAttackGame(s.botDifficulty!);
+      ov.remove(); startTimerAttackRun(s.botDifficulty!);
     });
     ov.querySelector("#ta-back")!.addEventListener("click", () => {
       ov.remove(); session = null; hoverLine = null; showTimerAttackScreen();
     });
   }
 
-  function showNervesResultOverlay(finalScore: number, ranking: WeekRankEntry[]) {
+  function showTimerAttackFailureOverlay(boardNumber: number) {
+    const ov = document.createElement("div");
+    ov.className = "result-overlay";
+    ov.innerHTML = `
+      <div class="result-card">
+        <div class="result-header"><span>${ICO_STOPWATCH} ${t("ta_failed_title")}</span></div>
+        <div class="result-score-big">${t("timer_attack_challenge_progress", { current: boardNumber, total: TIMER_ATTACK_TOTAL_BOARDS })}</div>
+        <div class="ta-total-time-label">${t("ta_failed_body", { current: boardNumber, total: TIMER_ATTACK_TOTAL_BOARDS })}</div>
+        <div class="result-actions">
+          <button class="btn-start" id="ta-failed-retry">${t("ta_play_again")}</button>
+          <button class="btn-secondary" id="ta-failed-back">${t("back")}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector("#ta-failed-retry")!.addEventListener("click", () => {
+      ov.remove(); startTimerAttackRun(s.botDifficulty!);
+    });
+    ov.querySelector("#ta-failed-back")!.addEventListener("click", () => {
+      ov.remove(); session = null; hoverLine = null; showTimerAttackScreen();
+    });
+  }
+
+  function showNervesResultOverlay(finalScore: number, ranking: ScoreWeekRankEntry[]) {
     const ov = document.createElement("div");
     ov.className = "result-overlay";
     ov.innerHTML = `
@@ -2041,7 +2194,7 @@ function showGame() {
         <div class="result-header"><span>${ICO_FLAME} ${t("nerves_result_title")}</span></div>
         <div class="result-score-big">${t("nerves_rounds_survived", {n: finalScore})}</div>
         <div class="result-rank-title">${t("rank_weekly_title")}</div>
-        ${weekRankHTML(ranking, finalScore, "nerves_rounds_survived")}
+        ${scoreWeekRankHTML(ranking, finalScore, "nerves_rounds_survived")}
         <div class="result-actions">
           <button class="btn-start" id="nerves-retry">${t("nerves_try_again")}</button>
           <button class="btn-secondary" id="nerves-back">${t("back")}</button>
@@ -2072,7 +2225,7 @@ function showGame() {
       } else {
         showToast(t("nerves_lost_round"));
         const playerName = loadProfile().name;
-        const ranking = addWeekRankEntry(NERVES_RANKING_KEY, { name: playerName, score: curScore, date: Date.now() });
+        const ranking = addScoreWeekRankEntry(NERVES_RANKING_KEY, { name: playerName, score: curScore, date: Date.now() });
         setTimeout(() => showNervesResultOverlay(curScore, ranking), 600);
       }
     }
@@ -2090,7 +2243,7 @@ function showGame() {
       setTimeout(() => startNervesGame(curRound, livesLeft, curScore), 1000);
     } else {
       const playerName = loadProfile().name;
-      const ranking = addWeekRankEntry(NERVES_RANKING_KEY, { name: playerName, score: curScore, date: Date.now() });
+      const ranking = addScoreWeekRankEntry(NERVES_RANKING_KEY, { name: playerName, score: curScore, date: Date.now() });
       setTimeout(() => showNervesResultOverlay(curScore, ranking), 600);
     }
   }
@@ -2189,21 +2342,14 @@ function showGame() {
   draw();
   if (s.mode === "arcade") startEnergyTimer();
 
-  // Timer Attack: start 3-minute countdown
   if (s.mode === "timer-attack") {
     attackTimerInterval = setInterval(() => {
       if (!session || session !== s) { clearInterval(attackTimerInterval!); attackTimerInterval = null; return; }
-      s.timerSecondsLeft = (s.timerSecondsLeft ?? 1) - 1;
-      const el = document.getElementById("ta-timer");
-      if (el) {
-        el.textContent = formatTimer(s.timerSecondsLeft);
-        el.className = `ta-timer${s.timerSecondsLeft <= 30 ? " ta-timer--danger" : ""}`;
-      }
-      if (s.timerSecondsLeft <= 0) {
-        clearInterval(attackTimerInterval!); attackTimerInterval = null;
-        if (!s.finishShown) { s.finishShown = true; const st = s.controller.getState(); const you = st.players.find(p=>p.id!==s.botPlayerId)!; const ranking = addWeekRankEntry(TA_RANKING_KEY, { name: loadProfile().name, score: you.score, date: Date.now() }); showTimerAttackResultOverlay(you.score, ranking); }
-      }
-    }, 1000);
+      const currentEl = document.getElementById("ta-current-timer");
+      const totalEl = document.getElementById("ta-total-timer");
+      if (currentEl) currentEl.textContent = formatTimerAttackTime(getTimerAttackBoardElapsedMs(s));
+      if (totalEl) totalEl.textContent = formatTimerAttackTime(getTimerAttackTotalTimeMs(s));
+    }, 50);
   }
 
   // Nervos de Aço: start per-move timer (only when it's human's turn)
@@ -3532,7 +3678,10 @@ html[data-theme="pink"] .btn-icon--lab { background: var(--ui-accent-soft); bord
 
 /* ── TELAS MODOS (C8-C11) ────────────────────────────── */
 .mode-info-card { display: flex; flex-direction: column; gap: 10px; margin: 12px 16px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
-.mode-info-row { font-size: .88rem; color: var(--text-2); font-weight: 600; }
+.mode-info-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: .88rem; color: var(--text-2); font-weight: 600;
+}
 .mode-tagline { font-size: .95rem; font-weight: 800; color: var(--text); line-height: 1.4; }
 .mode-anti-p2w { font-size: .78rem; color: var(--text-3); font-style: italic; margin-top: 4px; }
 .mode-coming-card { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 40px 16px; text-align: center; }
@@ -3542,10 +3691,31 @@ html[data-theme="pink"] .btn-icon--lab { background: var(--ui-accent-soft); bord
 .mode-coming-msg { font-size: .9rem; color: var(--text-2); line-height: 1.5; }
 
 /* ── Timer Attack ──────────────────────────────────────────── */
+.ta-hud {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 10px 14px; margin: 0 4px;
+  background: var(--bg-3); border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.ta-progress {
+  font-size: .78rem; font-weight: 800; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.ta-metrics {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+}
+.ta-metric {
+  display: flex; flex-direction: column; gap: 3px;
+}
+.ta-metric strong {
+  font-size: .72rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .8px;
+}
 .ta-timer {
-  text-align: center; font-size: 1.6rem; font-weight: 900; letter-spacing: 2px;
+  font-size: 1.28rem; font-weight: 900; letter-spacing: 1px;
   color: var(--ui-accent); font-variant-numeric: tabular-nums;
-  padding: 4px 0 2px;
+}
+.ta-best {
+  font-size: .82rem; color: var(--text-2); font-weight: 700;
 }
 .ta-timer--danger { color: #ef4444; animation: ta-blink .6s step-start infinite; }
 @keyframes ta-blink { 0%,100%{opacity:1} 50%{opacity:.4} }
@@ -3585,6 +3755,9 @@ html[data-theme="pink"] .btn-icon--lab { background: var(--ui-accent-soft); bord
 .result-score-big {
   text-align: center; font-size: 2rem; font-weight: 900; color: var(--text);
 }
+.ta-total-time-label {
+  text-align: center; font-size: .85rem; color: var(--text-2); font-weight: 700;
+}
 .result-rank-title { font-size: .75rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; }
 .result-actions { display: flex; flex-direction: column; gap: 8px; }
 .rank-empty { text-align: center; color: var(--text-2); font-size: .88rem; }
@@ -3598,6 +3771,19 @@ html[data-theme="pink"] .btn-icon--lab { background: var(--ui-accent-soft); bord
 .rank-pos { min-width: 28px; text-align: center; font-size: 1rem; }
 .rank-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank-score { font-weight: 700; font-size: .82rem; white-space: nowrap; }
+.rank-score-sub {
+  display: block; font-size: .68rem; font-weight: 600;
+  color: var(--text-3); margin-top: 2px;
+}
+.ta-board-times { display: flex; flex-direction: column; gap: 6px; }
+.ta-board-time-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--bg-3); border-radius: 8px; padding: 8px 10px;
+  color: var(--text-2); font-size: .84rem;
+}
+.ta-board-time-row strong {
+  color: var(--text); font-weight: 800; font-variant-numeric: tabular-nums;
+}
 
 /* ── btn-secondary ─────────────────────────────────────────── */
 .btn-secondary {

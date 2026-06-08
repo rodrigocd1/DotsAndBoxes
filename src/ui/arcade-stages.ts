@@ -1,6 +1,6 @@
 import { BOT_DIFFICULTIES, BotDifficulty } from "./bot";
 import { t } from "./i18n";
-import { INITIAL_STAGES, TOTAL_STAGES } from "../config/game-constants";
+import { INITIAL_STAGES, TIMER_ATTACK_TOTAL_BOARDS, TOTAL_STAGES } from "../config/game-constants";
 
 export { INITIAL_STAGES, TOTAL_STAGES } from "../config/game-constants";
 
@@ -98,6 +98,7 @@ const RAW_BOARD_TEMPLATES = [
 export const BOARD_TEMPLATES: readonly BoardTemplate[] = RAW_BOARD_TEMPLATES.map(normalizeTemplate);
 export const NERVES_OF_STEEL_BOARD_CYCLE_SIZE = BOARD_TEMPLATES.length;
 export const NERVES_OF_STEEL_DIFFICULTY_LADDER: readonly BotDifficulty[] = BOT_DIFFICULTIES.slice(2);
+export const TIMER_ATTACK_BOARD_COUNT = Math.min(TIMER_ATTACK_TOTAL_BOARDS, BOARD_TEMPLATES.length);
 
 const STAGES: readonly Stage[] = Array.from({ length: TOTAL_STAGES }, (_, index) =>
   buildStage(index + 1),
@@ -109,6 +110,10 @@ export interface NervesOfSteelBoardRotation {
   readonly templateIndex: number;
   readonly template: BoardTemplate;
   readonly difficulty: BotDifficulty;
+}
+
+export interface TimerAttackCourse {
+  readonly boards: readonly BoardTemplate[];
 }
 
 export function calculateStars(
@@ -157,6 +162,19 @@ export function getNervesOfSteelBoardRotation(attemptIndex: number): NervesOfSte
     templateIndex,
     template: BOARD_TEMPLATES[templateIndex]!,
     difficulty: NERVES_OF_STEEL_DIFFICULTY_LADDER[difficultyIndex]!,
+  };
+}
+
+export function buildTimerAttackCourse(random: () => number = Math.random): TimerAttackCourse {
+  const shuffledBoards = [...BOARD_TEMPLATES];
+
+  for (let index = shuffledBoards.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [shuffledBoards[index], shuffledBoards[swapIndex]] = [shuffledBoards[swapIndex]!, shuffledBoards[index]!];
+  }
+
+  return {
+    boards: shuffledBoards.slice(0, TIMER_ATTACK_BOARD_COUNT),
   };
 }
 

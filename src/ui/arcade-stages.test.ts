@@ -4,7 +4,9 @@ import {
   EVEN_STAGE_DIFFICULTY_BOOST,
   INITIAL_STAGES,
   NERVES_OF_STEEL_BOARD_CYCLE_SIZE,
+  TIMER_ATTACK_BOARD_COUNT,
   TOTAL_STAGES,
+  buildTimerAttackCourse,
   calculateStars,
   getDifficultyLabel,
   getNervesOfSteelBoardRotation,
@@ -92,5 +94,13 @@ describe("arcade stages", () => {
     expect(getNervesOfSteelBoardRotation(NERVES_OF_STEEL_BOARD_CYCLE_SIZE * 3).difficulty).toBe("impossivel");
     expect(getNervesOfSteelBoardRotation(NERVES_OF_STEEL_BOARD_CYCLE_SIZE * 4).difficulty).toBe("impulsivo");
     expect(getNervesOfSteelBoardRotation(NERVES_OF_STEEL_BOARD_CYCLE_SIZE * 8).difficulty).toBe("impulsivo");
+  });
+
+  it("monta um percurso do Timer Attack com 10 tabuleiros sem repeticao", () => {
+    const course = buildTimerAttackCourse(() => 0.25);
+
+    expect(course.boards).toHaveLength(TIMER_ATTACK_BOARD_COUNT);
+    expect(new Set(course.boards.map((board) => board.id)).size).toBe(TIMER_ATTACK_BOARD_COUNT);
+    expect(course.boards.every((board) => BOARD_TEMPLATES.some((template) => template.id === board.id))).toBe(true);
   });
 });

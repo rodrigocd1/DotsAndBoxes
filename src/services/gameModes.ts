@@ -3,7 +3,7 @@
  * Centraliza regras de cada modo.
  */
 import {
-  TIMER_ATTACK_DURATION_SECONDS,
+  TIMER_ATTACK_TOTAL_BOARDS,
   TIMER_ATTACK_UNLOCK_STAGE,
   RANKED_UNLOCK_STAGE,
   NERVES_OF_STEEL_UNLOCK_STAGE,
@@ -19,7 +19,7 @@ import {
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
 export interface TimerAttackConfig {
-  durationSeconds: number;
+  totalBoards: number;
   unlockStage: number;
   powersAllowed: false;
   vipAdvantage: false;
@@ -53,7 +53,7 @@ export interface X1Config {
 // ── Configurações ──────────────────────────────────────────────────────────
 
 export const TIMER_ATTACK: TimerAttackConfig = {
-  durationSeconds: TIMER_ATTACK_DURATION_SECONDS,
+  totalBoards: TIMER_ATTACK_TOTAL_BOARDS,
   unlockStage: TIMER_ATTACK_UNLOCK_STAGE,
   powersAllowed: false,
   vipAdvantage: false,

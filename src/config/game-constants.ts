@@ -16,7 +16,7 @@ export const GOD_MODE_LIMIT_RESET_ENABLED = true;
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const GAME_CONSTANTS = {
-  version: "v0.01.68",
+  version: "v0.01.69",
   energy: {
     max: 10,
     regenMinutes: 2,
@@ -209,10 +209,8 @@ export const COMPETITIVE_RANKS = [
 // TIMER ATTACK
 // ══════════════════════════════════════════════════════════════════════════════
 
-/** Duração do Timer Attack em segundos */
-export const TIMER_ATTACK_DURATION_SECONDS = 180;
-/** Grade fixa usada internamente no Timer Attack */
-export const TIMER_ATTACK_DEFAULT_GRID_SIZE = 4;
+/** Quantidade de desafios no percurso do Timer Attack */
+export const TIMER_ATTACK_TOTAL_BOARDS = 10;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // NERVOS DE AÇO
