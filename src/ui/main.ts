@@ -113,8 +113,24 @@ function tablerSvg(size: number, paths: string): string {
 function tablerSvgFilled(size: number, paths: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor">${TABLER_CLR}${paths}</svg>`;
 }
+function decorativeSvg(size: number, body: string, viewBox = "0 0 24 24"): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${viewBox}" aria-hidden="true" focusable="false">${body}</svg>`;
+}
+function decorativeTablerSvg(size: number, paths: string): string {
+  return `<svg ${TABLER_ATTRS} width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${TABLER_CLR}${paths}</svg>`;
+}
 const MENU_ICON_SIZE     = 22;
+const AUTH_ICON_SIZE     = 24;
 const PLATFORM_ICON_SIZE = 16;
+const ICO_AUTH_GOOGLE = decorativeSvg(AUTH_ICON_SIZE, `
+  <circle cx="12" cy="12" r="9.5" fill="#ffffff"/>
+  <path fill="#4285F4" d="M21.805 10.023H21V10h-9v4h5.651c-.582 1.941-2.388 4-5.651 4c-3.314 0-6-2.686-6-6s2.686-6 6-6c1.529 0 2.921 .577 3.98 1.52l2.83-2.83C17.023 3.026 14.624 2 12 2C6.477 2 2 6.477 2 12s4.477 10 10 10c5 0 9.5-3.5 9.5-10c0-.67-.069-1.325-.195-1.977z"/>
+  <path fill="#34A853" d="M3.153 7.346l3.29 2.41C7.334 7.539 9.451 6 12 6c1.529 0 2.921 .577 3.98 1.52l2.83-2.83C17.023 3.026 14.624 2 12 2C8.159 2 4.828 4.168 3.153 7.346z"/>
+  <path fill="#FBBC04" d="M12 22c2.553 0 4.893 -.977 6.658 -2.571l-3.078 -2.605C14.537 17.533 13.302 18 12 18c-2.602 0 -4.809 -1.66 -5.64 -3.966l-3.265 2.517C4.752 19.778 8.113 22 12 22z"/>
+  <path fill="#EA4335" d="M3.153 7.346A9.954 9.954 0 0 0 2 12c0 1.537 .347 2.99 .965 4.278l3.395 -2.622A5.962 5.962 0 0 1 6 12c0 -.647 .103 -1.27 .294 -1.857L3.153 7.346z"/>
+`);
+const ICO_AUTH_APPLE = decorativeTablerSvg(AUTH_ICON_SIZE, `<path d="M8.286 7.008c-3.216 0-4.286 3.23-4.286 5.92c0 3.229 2.143 8.072 4.286 8.072c1.165-.05 1.799-.538 3.214-.538c1.406 0 1.607.538 3.214.538s4.286-3.229 4.286-5.381c-.03-.011-2.649-.434-2.679-3.23c-.02-2.335 2.589-3.179 2.679-3.228c-1.096-1.606-3.162-2.113-3.75-2.153c-1.535-.12-3.032 1.077-3.75 1.077c-.729 0-2.036-1.077-3.214-1.077"/><path d="M12 4a2 2 0 0 0 2-2a2 2 0 0 0-2 2"/>`);
+const ICO_AUTH_BIOMETRIC = decorativeTablerSvg(AUTH_ICON_SIZE, `<path d="M18.9 7a8 8 0 0 1 1.1 5v1a6 6 0 0 0 .8 3"/><path d="M8 11a4 4 0 0 1 8 0v1a10 10 0 0 0 2 6"/><path d="M12 11v2a14 14 0 0 0 2.5 8"/><path d="M8 15a18 18 0 0 0 1.8 6"/><path d="M4.9 19a22 22 0 0 1 -.9 -7v-1a8 8 0 0 1 12 -6.95"/>`);
 const ICO_BARBELL    = tablerSvg(MENU_ICON_SIZE,     `<path d="M2 12h1"/><path d="M6 8h-2a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/><path d="M6 7v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-10a1 1 0 0 0-1-1h-1a1 1 0 0 0-1 1"/><path d="M9 12h6"/><path d="M15 7v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-10a1 1 0 0 0-1-1h-1a1 1 0 0 0-1 1"/><path d="M18 8h2a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2"/><path d="M22 12h-1"/>`);
 const ICO_USERS      = tablerSvg(MENU_ICON_SIZE,     `<path d="M5 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/>`);
 const ICO_BOOK       = tablerSvg(MENU_ICON_SIZE,     `<path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6l0 13"/><path d="M12 6l0 13"/><path d="M21 6l0 13"/>`);
@@ -1562,21 +1578,21 @@ async function showLoginScreen(): Promise<void> {
 
       <div class="auth-card">
         <button class="btn-menu auth-btn auth-btn--google" id="btn-auth-google">
-          <div class="btn-menu-icon-wrap btn-icon--bot">G</div>
+          <div class="btn-menu-icon-wrap btn-icon--bot">${ICO_AUTH_GOOGLE}</div>
           <div class="btn-menu-text">
             <strong>${t("auth_google")}</strong>
             <small>${t("auth_google_hint")}</small>
           </div>
         </button>
         <button class="btn-menu auth-btn auth-btn--apple" id="btn-auth-apple">
-          <div class="btn-menu-icon-wrap btn-icon--multi"></div>
+          <div class="btn-menu-icon-wrap btn-icon--multi">${ICO_AUTH_APPLE}</div>
           <div class="btn-menu-text">
             <strong>${t("auth_apple")}</strong>
             <small>${t("auth_apple_hint")}</small>
           </div>
         </button>
         <button class="btn-menu auth-btn auth-btn--biometric ${biometricReady ? "" : "auth-btn--disabled"}" id="btn-auth-biometric" ${biometricReady ? "" : "disabled"}>
-          <div class="btn-menu-icon-wrap btn-icon--arcade">ðŸ”</div>
+          <div class="btn-menu-icon-wrap btn-icon--arcade">${ICO_AUTH_BIOMETRIC}</div>
           <div class="btn-menu-text">
             <strong>${t("auth_biometric")}</strong>
             <small>${biometricReady ? t("auth_biometric_ready") : t("auth_biometric_unavailable")}</small>
