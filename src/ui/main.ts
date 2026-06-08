@@ -14,15 +14,25 @@ import {
   TIMER_ATTACK_BOARD_COUNT,
 } from "./arcade-stages";
 import {
+  ACCOUNT_RECOVERY_ENABLED,
+  ACCOUNT_RECOVERY_REQUIRE_LOGIN_TO_COPY,
+  AUTH_ENABLED,
+  AUTH_STEAM_FUTURE_ENABLED,
+  BANNER_CONFIG,
+  COMPETITIVE_RANKS,
   ENERGY_REWARD_AMOUNT,
   GOD_MODE_ENABLED,
   INITIAL_STAGES,
   MAX_ENERGY,
+  PROFILE_SCREEN_ENABLED,
+  SSO_PHOTO_PERMISSION_ENABLED,
   SKIPS_PER_WEEK,
   TOUCH_HIT_RADIUS as TOUCH_HIT,
   VERSION,
 } from "../config/game-constants";
 import {
+  getCurrentPlayerAccount,
+  hasSavedTheme,
   loadProfile, recordStageResult, rankLabel,
   loadEnergy, spendEnergy, refillEnergy, saveEnergy, msToNextEnergy,
   addEnergy,
@@ -34,6 +44,8 @@ import {
   loadMusicVolume, saveMusicVolume,
   loadMute, saveMute,
   consumeNervesAttemptIndex,
+  saveProfile,
+  saveCurrentPlayerAccount,
   isLoggedIn, isVipActive, isFeatureUnlocked, getEffectiveMaxStage,
   resetNervesProgress,
 } from "./storage";
@@ -52,12 +64,41 @@ import {
 import { calculateXp } from "../services/xpSystem";
 import { createLabReport } from "../services/labReport";
 import {
+  canAccumulateTacticalRadar,
+  canRedeemPermanentRewardCodes,
+  canUseOnlineFeatures,
+  canUseRanked,
+  getCurrentAuthState,
+  refreshSessionIfNeeded,
+  signInAsGuest,
+  signInWithApple,
+  signInWithGoogle,
+  signOut,
+  type AuthActionResult,
+} from "../services/authService";
+import {
+  disableBiometricLogin,
+  enableBiometricLogin,
+  hasBiometricLoginEnabled,
+  isBiometricAvailable,
+  tryAutoLoginWithBiometrics,
+} from "../services/biometricAuthService";
+import type { AuthProvider, PlayerAccount } from "../services/authTypes";
+import {
+  getOrCreateRecoveryCode,
+  getRecoveryCodeHash,
+  normalizeRecoveryCode,
+  regenerateRecoveryCode,
+  validateRecoveryCodeInput,
+} from "../services/accountRecovery";
+import {
   TIMER_ATTACK_TOTAL_BOARDS,
   TIMER_ATTACK_UNLOCK_STAGE, RANKED_UNLOCK_STAGE, NERVES_OF_STEEL_UNLOCK_STAGE,
 } from "../config/game-constants";
 import { getNervesOfSteelLives, getNervesOfSteelMoveTime } from "../services/gameModes";
 import { t, getCurrentLang, setLang, LANG_NAMES, Lang } from "./i18n";
 import { Line, lineKey } from "../models/line";
+import { updatePlayerProfileJson, updatePlayerRecoveryHash, updateSsoPhotoPermission } from "../services/salesforceIntegration";
 import "flag-icons/css/flag-icons.min.css";
 
 // ── Tabler Icons — inline SVG (MIT License) ───────────────────────────────
@@ -274,6 +315,225 @@ function getTimerAttackTotalTimeMs(s: GameSession, nowMs = Date.now()): number {
 function getTimerAttackBestTotalMs(): number | null {
   const bestEntry = loadTimerAttackRanking()[0];
   return bestEntry?.totalTimeMs ?? null;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function getCompetitiveRankName(points: number): string {
+  const tier = [...COMPETITIVE_RANKS]
+    .sort((a, b) => b.minPoints - a.minPoints)
+    .find((entry) => points >= entry.minPoints);
+  return tier?.label ?? COMPETITIVE_RANKS[0]!.label;
+}
+
+function getAuthProviderLabel(provider: AuthProvider): string {
+  if (provider === "google") return t("auth_provider_google");
+  if (provider === "apple") return t("auth_provider_apple");
+  if (provider === "steam") return t("auth_provider_steam");
+  return t("auth_provider_guest");
+}
+
+function maskRecoveryCode(code: string): string {
+  return code.length <= 6
+    ? "•".repeat(code.length)
+    : `${code.slice(0, 4)}${"•".repeat(Math.max(4, code.length - 8))}${code.slice(-4)}`;
+}
+
+function hasSsoPhotoPermissionAnswer(account: PlayerAccount | null): boolean {
+  return typeof account?.useSsoPhotoInRanking === "boolean";
+}
+
+async function copyTextToClipboard(value: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {}
+
+  try {
+    const input = document.createElement("textarea");
+    input.value = value;
+    input.setAttribute("readonly", "true");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    const copied = document.execCommand("copy");
+    input.remove();
+    return copied;
+  } catch {
+    return false;
+  }
+}
+
+function updateCurrentAccount(mutator: (account: PlayerAccount) => PlayerAccount): PlayerAccount | null {
+  const account = getCurrentPlayerAccount();
+  if (!account) return null;
+  const nextAccount = mutator(account);
+  saveCurrentPlayerAccount(nextAccount);
+  return nextAccount;
+}
+
+async function syncCurrentProfileToSalesforce(): Promise<void> {
+  const account = getCurrentPlayerAccount();
+  if (!account || !canUseOnlineFeatures()) return;
+  await updatePlayerProfileJson(account.playerId, loadProfile());
+}
+
+async function syncCurrentRecoveryHashToSalesforce(): Promise<void> {
+  const account = getCurrentPlayerAccount();
+  if (!account || !canUseOnlineFeatures()) return;
+  const recoveryHash = await getRecoveryCodeHash();
+  if (!recoveryHash) return;
+  await updatePlayerRecoveryHash(account.playerId, recoveryHash);
+}
+
+function showActionModal(
+  title: string,
+  bodyHtml: string,
+  actionsHtml: string,
+  bind: (root: HTMLElement, close: () => void) => void,
+): void {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal-card modal-card--compact">
+      <div class="modal-header">
+        <span>${title}</span>
+        <button class="modal-close" id="modal-close">×</button>
+      </div>
+      <div class="modal-copy">${bodyHtml}</div>
+      <div class="modal-actions">${actionsHtml}</div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.querySelector("#modal-close")?.addEventListener("click", close);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) close();
+  });
+  bind(overlay, close);
+}
+
+function showConfirmModal(
+  title: string,
+  message: string,
+  confirmLabel: string,
+  onConfirm: () => void | Promise<void>,
+  confirmClassName = "btn-start",
+): void {
+  showActionModal(
+    title,
+    `<p>${message}</p>`,
+    `
+      <button class="${confirmClassName}" id="modal-confirm">${confirmLabel}</button>
+      <button class="btn-secondary" id="modal-cancel">${t("power_cancel")}</button>
+    `,
+    (root, close) => {
+      root.querySelector("#modal-cancel")?.addEventListener("click", close);
+      root.querySelector("#modal-confirm")?.addEventListener("click", async () => {
+        await onConfirm();
+        close();
+      });
+    },
+  );
+}
+
+function showTextInputModal(options: {
+  title: string;
+  label: string;
+  initialValue: string;
+  placeholder: string;
+  submitLabel: string;
+  onSubmit: (value: string) => void | Promise<void>;
+}): void {
+  showActionModal(
+    options.title,
+    `
+      <label class="modal-input-label" for="modal-text-input">${options.label}</label>
+      <input class="modal-input" id="modal-text-input" value="${escapeHtml(options.initialValue)}" placeholder="${escapeHtml(options.placeholder)}" maxlength="28" />
+    `,
+    `
+      <button class="btn-start" id="modal-submit">${options.submitLabel}</button>
+      <button class="btn-secondary" id="modal-cancel">${t("power_cancel")}</button>
+    `,
+    (root, close) => {
+      const input = root.querySelector<HTMLInputElement>("#modal-text-input");
+      root.querySelector("#modal-cancel")?.addEventListener("click", close);
+      root.querySelector("#modal-submit")?.addEventListener("click", async () => {
+        const value = input?.value.trim() ?? "";
+        await options.onSubmit(value);
+        close();
+      });
+      input?.focus();
+      input?.select();
+      input?.addEventListener("keydown", async (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          const value = input.value.trim();
+          await options.onSubmit(value);
+          close();
+        }
+      });
+    },
+  );
+}
+
+function showLoginRequiredModal(message: string): void {
+  showActionModal(
+    t("auth_feature_login_required_title"),
+    `<p>${message}</p>`,
+    `
+      <button class="btn-start" id="modal-login">${t("auth_feature_login_cta")}</button>
+      <button class="btn-secondary" id="modal-later">${t("auth_feature_login_later")}</button>
+    `,
+    (root, close) => {
+      root.querySelector("#modal-later")?.addEventListener("click", close);
+      root.querySelector("#modal-login")?.addEventListener("click", () => {
+        close();
+        showLoginScreen();
+      });
+    },
+  );
+}
+
+function showSsoPhotoPermissionModal(onDone?: () => void): void {
+  const account = getCurrentPlayerAccount();
+  if (!account) return;
+
+  showActionModal(
+    t("profile_photo_permission_title"),
+    `<p>${t("profile_photo_permission_prompt")}</p>`,
+    `
+      <button class="btn-start" id="photo-use-sso">${t("profile_use_sso_photo")}</button>
+      <button class="btn-secondary" id="photo-use-avatar">${t("profile_use_game_avatar")}</button>
+    `,
+    (root, close) => {
+      const applyChoice = async (useSsoPhoto: boolean) => {
+        const nextAccount = updateCurrentAccount((currentAccount) => ({
+          ...currentAccount,
+          useSsoPhotoInRanking: useSsoPhoto,
+        }));
+        if (nextAccount) {
+          await updateSsoPhotoPermission(nextAccount.playerId, useSsoPhoto);
+        }
+        showToast(t("profile_photo_permission_saved"));
+        close();
+        onDone?.();
+      };
+
+      root.querySelector("#photo-use-sso")?.addEventListener("click", () => { void applyChoice(true); });
+      root.querySelector("#photo-use-avatar")?.addEventListener("click", () => { void applyChoice(false); });
+    },
+  );
 }
 
 const app = document.getElementById("app")!;
@@ -930,6 +1190,18 @@ function showGodModeModal(currentStageId?: number) {
         <label class="settings-label">Resetar Limites</label>
         <button class="god-go" id="god-reset-limits">Resetar Tudo (Dica/Radar/Congelar/Retry/Feedback)</button>
       </div>
+      <div class="settings-section">
+        <label class="settings-label">Conta e SSO</label>
+        <div class="god-autoplay-row">
+          <button class="god-go" id="god-auth-google">Simular Google</button>
+          <button class="god-go" id="god-auth-apple">Simular Apple</button>
+        </div>
+        <div class="god-autoplay-row">
+          <button class="god-skip" id="god-auth-guest">Simular Guest</button>
+          <button class="god-refill" id="god-auth-clear">Limpar SessÃ£o</button>
+        </div>
+        <button class="god-skip" id="god-photo-reset">Resetar permissÃ£o de foto SSO</button>
+      </div>
       ${currentStageId != null && currentStageId < INITIAL_STAGES ? `<button class="god-skip" id="gsk">${t("god_next",{id:currentStageId+1})}</button>` : ""}
       <button class="god-refill" id="gr">${t("god_refill")}</button>
       <div class="settings-version">God Mode ${GOD_MODE_ENABLED ? "✅" : "❌"} | SSO: ${isLoggedIn() ? "✅" : "❌"} | VIP: ${isVipActive() ? "✅" : "❌"}</div>
@@ -979,6 +1251,56 @@ function showGodModeModal(currentStageId?: number) {
     godMode.simulateRankedPoints = null; saveGodMode(godMode);
     (ov.querySelector<HTMLInputElement>("#god-rank-sim")!).value = "";
     showToast("Simulação de ranked removida");
+  });
+
+  const finishAccountAction = () => {
+    ov.remove();
+    if (currentStageId == null) {
+      showMenu();
+    }
+  };
+
+  ov.querySelector("#god-auth-google")?.addEventListener("click", async () => {
+    godMode.simulateSso = true;
+    saveGodMode(godMode);
+    const result = await signInWithGoogle();
+    if (result.message) showToast(result.message);
+    finishAccountAction();
+  });
+  ov.querySelector("#god-auth-apple")?.addEventListener("click", async () => {
+    godMode.simulateSso = true;
+    saveGodMode(godMode);
+    const result = await signInWithApple();
+    if (result.message) showToast(result.message);
+    finishAccountAction();
+  });
+  ov.querySelector("#god-auth-guest")?.addEventListener("click", async () => {
+    godMode.simulateSso = false;
+    saveGodMode(godMode);
+    const result = await signInAsGuest();
+    if (result.message) showToast(result.message);
+    finishAccountAction();
+  });
+  ov.querySelector("#god-auth-clear")?.addEventListener("click", async () => {
+    godMode.simulateSso = false;
+    saveGodMode(godMode);
+    disableBiometricLogin();
+    const result = await signOut();
+    if (result.message) showToast(result.message);
+    finishAccountAction();
+  });
+  ov.querySelector("#god-photo-reset")?.addEventListener("click", async () => {
+    const nextAccount = updateCurrentAccount((currentAccount) => {
+      const sanitizedAccount: PlayerAccount = { ...currentAccount };
+      delete sanitizedAccount.useSsoPhotoInRanking;
+      return sanitizedAccount;
+    });
+    if (nextAccount) {
+      await syncCurrentProfileToSalesforce();
+      showToast("PermissÃ£o de foto SSO resetada");
+    } else {
+      showToast("Nenhuma conta ativa para resetar a permissÃ£o");
+    }
   });
 
   // IA joga por mim
@@ -1066,9 +1388,9 @@ function langSelectorInner(): string {
 function langSelectorHTML(): string {
   return `<div class="lang-selector">${langSelectorInner()}</div>`;
 }
-function bindLangSelector(root: Element | Document = document) {
+function bindLangSelector(root: Element | Document = document, onChange: () => void = showMenu) {
   root.querySelectorAll(".btn-lang").forEach((b) => {
-    (b as HTMLElement).onclick = () => { setLang((b as HTMLElement).dataset["lang"] as Lang); showMenu(); };
+    (b as HTMLElement).onclick = () => { setLang((b as HTMLElement).dataset["lang"] as Lang); onChange(); };
   });
 }
 
@@ -1138,7 +1460,7 @@ function showThemeSetup() {
   confirmBtn.addEventListener("click", () => {
     if (!selectedTheme) return;
     saveTheme(selectedTheme);
-    showMenu();
+    void routeFromAuthState();
   });
 
   syncSelection();
@@ -1161,6 +1483,348 @@ function menuModeButton(id: string, emoji: string, labelKey: string, subKey: str
 }
 
 // ── BARRA DE PODERES ──────────────────────────────────────────────────────
+async function handleAuthAction(action: () => Promise<AuthActionResult>): Promise<void> {
+  const result = await action();
+  if (result.message) {
+    showToast(result.message);
+  }
+  if (result.ok) {
+    showMenu();
+  }
+}
+
+function showRecoveryModal(): void {
+  showActionModal(
+    t("auth_recovery_title"),
+    `
+      <p>${t("auth_recovery_subtitle")}</p>
+      <label class="modal-input-label" for="recovery-code-input">${t("auth_recovery_label")}</label>
+      <input class="modal-input modal-input--code" id="recovery-code-input" placeholder="${t("auth_recovery_placeholder")}" maxlength="32" />
+    `,
+    `
+      <button class="btn-start" id="recovery-validate">${t("auth_recovery_validate")}</button>
+      <button class="btn-secondary" id="recovery-cancel">${t("power_cancel")}</button>
+    `,
+    (root, close) => {
+      const input = root.querySelector<HTMLInputElement>("#recovery-code-input");
+      const submit = async () => {
+        const normalizedCode = normalizeRecoveryCode(input?.value ?? "");
+        if (!normalizedCode) {
+          showToast(t("auth_recovery_needs_code"));
+          return;
+        }
+
+        const validation = await validateRecoveryCodeInput(normalizedCode);
+        if (validation.valid && validation.source === "local") {
+          showToast(t("auth_recovery_success_local"));
+          close();
+          return;
+        }
+        if (validation.valid) {
+          showToast(t("auth_recovery_success_remote"));
+          close();
+          return;
+        }
+        showToast(t("auth_recovery_invalid"));
+      };
+
+      root.querySelector("#recovery-cancel")?.addEventListener("click", close);
+      root.querySelector("#recovery-validate")?.addEventListener("click", () => { void submit(); });
+      input?.focus();
+      input?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void submit();
+        }
+      });
+    },
+  );
+}
+
+async function showLoginScreen(): Promise<void> {
+  stopEnergyTimer();
+  session = null;
+  hoverLine = null;
+
+  const authState = getCurrentAuthState();
+  const biometricReady = hasBiometricLoginEnabled() && !!authState.session && await isBiometricAvailable();
+  const showSteamButton = AUTH_STEAM_FUTURE_ENABLED;
+
+  app.innerHTML = `
+    <div class="screen auth-screen">
+      <div class="auth-hero">
+        <div class="theme-setup-brand">
+          <h1>Dots &amp; Boxes</h1>
+        </div>
+        <h2>${t("auth_screen_title")}</h2>
+        <p class="auth-subtitle">${t("auth_screen_subtitle")}</p>
+      </div>
+
+      <div class="auth-card">
+        <button class="btn-menu auth-btn auth-btn--google" id="btn-auth-google">
+          <div class="btn-menu-icon-wrap btn-icon--bot">G</div>
+          <div class="btn-menu-text">
+            <strong>${t("auth_google")}</strong>
+            <small>${t("auth_google_hint")}</small>
+          </div>
+        </button>
+        <button class="btn-menu auth-btn auth-btn--apple" id="btn-auth-apple">
+          <div class="btn-menu-icon-wrap btn-icon--multi"></div>
+          <div class="btn-menu-text">
+            <strong>${t("auth_apple")}</strong>
+            <small>${t("auth_apple_hint")}</small>
+          </div>
+        </button>
+        <button class="btn-menu auth-btn auth-btn--biometric ${biometricReady ? "" : "auth-btn--disabled"}" id="btn-auth-biometric" ${biometricReady ? "" : "disabled"}>
+          <div class="btn-menu-icon-wrap btn-icon--arcade">ðŸ”</div>
+          <div class="btn-menu-text">
+            <strong>${t("auth_biometric")}</strong>
+            <small>${biometricReady ? t("auth_biometric_ready") : t("auth_biometric_unavailable")}</small>
+          </div>
+        </button>
+        <button class="btn-secondary auth-ghost-btn" id="btn-auth-guest">${t("auth_guest")}</button>
+        <button class="btn-secondary auth-ghost-btn" id="btn-auth-recovery">${t("auth_recovery")}</button>
+        ${showSteamButton ? `<button class="btn-secondary auth-ghost-btn auth-ghost-btn--disabled" id="btn-auth-steam" disabled>${t("auth_steam")}</button>` : ""}
+      </div>
+
+      <p class="auth-note">${t("auth_guest_note")}</p>
+      ${langSelectorHTML()}
+    </div>`;
+
+  bindLangSelector(document, () => { void showLoginScreen(); });
+  document.getElementById("btn-auth-google")?.addEventListener("click", () => { void handleAuthAction(signInWithGoogle); });
+  document.getElementById("btn-auth-apple")?.addEventListener("click", () => { void handleAuthAction(signInWithApple); });
+  document.getElementById("btn-auth-guest")?.addEventListener("click", () => { void handleAuthAction(() => signInAsGuest()); });
+  document.getElementById("btn-auth-recovery")?.addEventListener("click", showRecoveryModal);
+  document.getElementById("btn-auth-steam")?.addEventListener("click", () => showToast(t("auth_steam_future")));
+  document.getElementById("btn-auth-biometric")?.addEventListener("click", async () => {
+    const unlocked = await tryAutoLoginWithBiometrics();
+    if (!unlocked) {
+      showToast(t("auth_biometric_unavailable"));
+      return;
+    }
+    await refreshSessionIfNeeded();
+    showToast(t("auth_biometric_success"));
+    showMenu();
+  });
+}
+
+async function showProfileScreen(options: { revealRecovery?: boolean } = {}): Promise<void> {
+  if (!PROFILE_SCREEN_ENABLED) {
+    showToast("ðŸ‘¤ " + t("profile"));
+    return;
+  }
+
+  stopEnergyTimer();
+  session = null;
+  hoverLine = null;
+
+  const authState = getCurrentAuthState();
+  const account = authState.account;
+  if (!account) {
+    await showLoginScreen();
+    return;
+  }
+
+  const profile = loadProfile();
+  const rank = rankLabel(profile.xp);
+  const rankedPoints = godMode.simulateRankedPoints ?? 0;
+  const wins = Object.values(profile.stageProgress).filter((entry) => entry.stars > 0).length;
+  const losses = 0;
+  const draws = 0;
+  const totalMatches = wins + losses + draws;
+  const winRate = totalMatches > 0 ? `${Math.round((wins / totalMatches) * 100)}%` : "-";
+  const bestStreak = wins > 0 ? String(wins) : "-";
+  const energy = loadEnergy();
+  const revealRecovery = options.revealRecovery ?? false;
+  const recoveryState = ACCOUNT_RECOVERY_ENABLED ? getOrCreateRecoveryCode() : null;
+  const recoveryValue = recoveryState ? (revealRecovery ? recoveryState.code : maskRecoveryCode(recoveryState.code)) : "";
+  const avatarMarkup = account.avatarUrl
+    ? `<img src="${account.avatarUrl}" alt="${escapeHtml(account.displayName)}" class="profile-avatar-image" />`
+    : `<span class="profile-avatar-fallback">${escapeHtml(account.displayName.slice(0, 2).toUpperCase())}</span>`;
+  const providerStatus = account.isGuest
+    ? t("profile_guest_status")
+    : t("profile_logged_status", { provider: getAuthProviderLabel(account.provider) });
+  const canToggleBiometric = !account.isGuest && !!authState.session;
+  const biometricAvailable = canToggleBiometric && await isBiometricAvailable();
+  const canManagePhoto = !account.isGuest && !!account.avatarUrl;
+
+  app.innerHTML = `
+    <div class="screen profile-screen">
+      <div class="screen-header">
+        <button class="btn-back" id="btn-back">${t("back")}</button>
+        <h2>${t("profile")}</h2>
+        <span class="header-end-spacer"></span>
+      </div>
+
+      <div class="profile-hero-card ${isVipActive() ? "profile-hero-card--vip" : ""}">
+        <div class="profile-avatar">${avatarMarkup}</div>
+        <div class="profile-hero-copy">
+          <div class="profile-title-row">
+            <strong>${escapeHtml(account.displayName)}</strong>
+            ${isVipActive() ? `<span class="profile-badge">${t("profile_vip_badge")}</span>` : ""}
+          </div>
+          <span class="profile-provider">${providerStatus}</span>
+          <span class="profile-provider">${getAuthProviderLabel(account.provider)}</span>
+        </div>
+      </div>
+
+      <div class="profile-actions">
+        <button class="btn-secondary" id="profile-edit-name">${t("profile_edit_name")}</button>
+        ${account.isGuest
+          ? `<button class="btn-start" id="profile-login">${t("profile_link_account")}</button>`
+          : `<button class="btn-secondary" id="profile-logout">${t("profile_logout")}</button>`}
+        ${canToggleBiometric
+          ? `<button class="btn-secondary ${biometricAvailable ? "" : "auth-ghost-btn--disabled"}" id="profile-biometric" ${biometricAvailable ? "" : "disabled"}>${hasBiometricLoginEnabled() ? t("biometric_disable") : t("biometric_enable")}</button>`
+          : ""}
+      </div>
+
+      <div class="profile-stats-grid">
+        <div class="profile-stat-card"><span>${t("profile_rank_general")}</span><strong>${rank.rank}</strong></div>
+        <div class="profile-stat-card"><span>${t("profile_rank_competitive")}</span><strong>${getCompetitiveRankName(rankedPoints)}</strong></div>
+        <div class="profile-stat-card"><span>${t("profile_xp")}</span><strong>${profile.xp.toLocaleString()}</strong></div>
+        <div class="profile-stat-card"><span>${t("profile_energy")}</span><strong>${energy}/${MAX_ENERGY}</strong></div>
+        <div class="profile-stat-card"><span>${t("profile_competitive_tickets")}</span><strong>${godMode.simulateCompetitiveEnergy ?? 0}</strong></div>
+        <div class="profile-stat-card"><span>${t("profile_wins")}</span><strong>${wins}</strong></div>
+        <div class="profile-stat-card"><span>${t("profile_losses")}</span><strong>${losses}</strong></div>
+        <div class="profile-stat-card"><span>${t("profile_draws")}</span><strong>${draws}</strong></div>
+        <div class="profile-stat-card"><span>${t("profile_win_rate")}</span><strong>${winRate}</strong></div>
+        <div class="profile-stat-card"><span>${t("profile_best_streak")}</span><strong>${bestStreak}</strong></div>
+      </div>
+
+      ${BANNER_CONFIG.profile ? `<div class="profile-banner">${t("profile_banner_ready")}</div>` : ""}
+
+      ${canManagePhoto ? `
+        <div class="profile-section">
+          <div class="profile-section-title">${t("profile_photo_permission_title")}</div>
+          <p class="profile-section-copy">${hasSsoPhotoPermissionAnswer(account) ? t("profile_photo_permission_saved_copy") : t("profile_photo_permission_prompt")}</p>
+          <div class="profile-inline-actions">
+            <button class="btn-secondary" id="profile-use-sso">${t("profile_use_sso_photo")}</button>
+            <button class="btn-secondary" id="profile-use-avatar">${t("profile_use_game_avatar")}</button>
+          </div>
+        </div>` : ""}
+
+      ${ACCOUNT_RECOVERY_ENABLED && recoveryState ? `
+        <div class="profile-section">
+          <div class="profile-section-title">${t("recovery_title")}</div>
+          <p class="profile-section-copy">${t("recovery_description")}</p>
+          <div class="recovery-code-box">${recoveryValue}</div>
+          <div class="profile-inline-actions">
+            <button class="btn-secondary" id="profile-recovery-toggle">${revealRecovery ? t("recovery_hide") : t("recovery_show")}</button>
+            <button class="btn-secondary" id="profile-recovery-copy">${t("recovery_copy")}</button>
+            <button class="btn-secondary" id="profile-recovery-regenerate">${t("recovery_regenerate")}</button>
+          </div>
+          <p class="profile-section-copy">${account.isGuest ? t("recovery_login_guard") : t("recovery_logged_hint")}</p>
+        </div>` : ""}
+
+      <div class="profile-section">
+        <div class="profile-section-title">${t("profile_access_title")}</div>
+        <p class="profile-section-copy">${canUseOnlineFeatures() ? t("profile_access_online") : t("profile_access_guest")}</p>
+        <div class="profile-access-grid">
+          <div class="profile-access-item"><span>${t("menu_ranked")}</span><strong>${canUseRanked() ? "âœ“" : "â€”"}</strong></div>
+          <div class="profile-access-item"><span>${t("profile_access_codes")}</span><strong>${canRedeemPermanentRewardCodes() ? "âœ“" : "â€”"}</strong></div>
+          <div class="profile-access-item"><span>${t("profile_access_radar")}</span><strong>${canAccumulateTacticalRadar() ? "âœ“" : "â€”"}</strong></div>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById("btn-back")?.addEventListener("click", showMenu);
+  document.getElementById("profile-login")?.addEventListener("click", () => { void showLoginScreen(); });
+  document.getElementById("profile-edit-name")?.addEventListener("click", () => {
+    showTextInputModal({
+      title: t("profile_edit_name_title"),
+      label: t("profile_edit_name_label"),
+      initialValue: account.displayName,
+      placeholder: t("profile_edit_name_placeholder"),
+      submitLabel: t("profile_edit_name_save"),
+      onSubmit: async (value) => {
+        if (!value.trim()) return;
+        saveProfile({ ...profile, name: value.trim() });
+        updateCurrentAccount((currentAccount) => ({
+          ...currentAccount,
+          displayName: value.trim(),
+        }));
+        await syncCurrentProfileToSalesforce();
+        showToast(t("profile_name_saved"));
+        void showProfileScreen({ revealRecovery });
+      },
+    });
+  });
+  document.getElementById("profile-logout")?.addEventListener("click", () => {
+    showConfirmModal(
+      t("profile_logout"),
+      t("profile_logout_confirm"),
+      t("profile_logout"),
+      async () => {
+        disableBiometricLogin();
+        const result = await signOut();
+        if (result.message) {
+          showToast(result.message);
+        }
+        await showLoginScreen();
+      },
+    );
+  });
+  document.getElementById("profile-biometric")?.addEventListener("click", async () => {
+    if (hasBiometricLoginEnabled()) {
+      disableBiometricLogin();
+      showToast(t("biometric_disable_success"));
+      void showProfileScreen({ revealRecovery });
+      return;
+    }
+    const enabled = await enableBiometricLogin();
+    showToast(enabled ? t("biometric_enable_success") : t("auth_biometric_unavailable"));
+    void showProfileScreen({ revealRecovery });
+  });
+  document.getElementById("profile-use-sso")?.addEventListener("click", async () => {
+    const nextAccount = updateCurrentAccount((currentAccount) => ({
+      ...currentAccount,
+      useSsoPhotoInRanking: true,
+    }));
+    if (nextAccount) {
+      await updateSsoPhotoPermission(nextAccount.playerId, true);
+    }
+    showToast(t("profile_photo_permission_saved"));
+    void showProfileScreen({ revealRecovery });
+  });
+  document.getElementById("profile-use-avatar")?.addEventListener("click", async () => {
+    const nextAccount = updateCurrentAccount((currentAccount) => ({
+      ...currentAccount,
+      useSsoPhotoInRanking: false,
+    }));
+    if (nextAccount) {
+      await updateSsoPhotoPermission(nextAccount.playerId, false);
+    }
+    showToast(t("profile_photo_permission_saved"));
+    void showProfileScreen({ revealRecovery });
+  });
+  document.getElementById("profile-recovery-toggle")?.addEventListener("click", () => {
+    void showProfileScreen({ revealRecovery: !revealRecovery });
+  });
+  document.getElementById("profile-recovery-copy")?.addEventListener("click", async () => {
+    if (!recoveryState) return;
+    if (ACCOUNT_RECOVERY_REQUIRE_LOGIN_TO_COPY && !canUseOnlineFeatures()) {
+      showLoginRequiredModal(t("recovery_copy_requires_login"));
+      return;
+    }
+    const copied = await copyTextToClipboard(recoveryState.code);
+    showToast(copied ? t("recovery_copied") : t("recovery_copy_failed"));
+  });
+  document.getElementById("profile-recovery-regenerate")?.addEventListener("click", () => {
+    showConfirmModal(
+      t("recovery_regenerate"),
+      t("recovery_regenerate_confirm"),
+      t("recovery_regenerate"),
+      async () => {
+        regenerateRecoveryCode();
+        await syncCurrentRecoveryHashToSalesforce();
+        showToast(t("recovery_regenerate_success"));
+        void showProfileScreen({ revealRecovery: true });
+      },
+    );
+  });
+}
+
 function powerBarHTML(): string {
   const isVip      = isVipActive();
   const maxStage   = getEffectiveMaxStage();
@@ -1197,10 +1861,10 @@ function bindPowerBar(): void {
 
   document.getElementById("pwr-tip")?.addEventListener("click", () => {
     if (!tipUnlocked) { showToast(t("power_locked_stage", { stage: MASTER_TIP_UNLOCK_STAGE })); return; }
-    if (!canUseMasterTip(isVip)) { showToast(t("power_no_tip")); return; }
+    if (!canUseMasterTip("vs-bot", isVip)) { showToast(t("power_no_tip")); return; }
     const n = getMasterTipDailyRemaining(isVip);
     showPowerConfirm(t("power_confirm_tip"), t("power_you_have", { n }), () => {
-      useMasterTip(isVip);
+      useMasterTip();
       showToast(t("power_tip_lang"));
       refreshPowerBar();
     });
@@ -1208,10 +1872,10 @@ function bindPowerBar(): void {
 
   document.getElementById("pwr-radar")?.addEventListener("click", () => {
     if (!radarUnlocked) { showToast(t("power_locked_stage", { stage: TACTICAL_RADAR_UNLOCK_STAGE })); return; }
-    if (!canUseRadar()) { showToast(t("power_no_radar")); return; }
+    if (!canUseRadar("vs-bot")) { showToast(t("power_no_radar")); return; }
     const n = getRadarStock();
     showPowerConfirm(t("power_confirm_radar"), t("power_you_have", { n }), () => {
-      useRadar();
+      useRadar("vs-bot");
       showToast(t("power_radar") + " ✓");
       refreshPowerBar();
     });
@@ -1225,7 +1889,7 @@ function bindPowerBar(): void {
       return;
     }
     showPowerConfirm(t("power_confirm_freeze"), "", () => {
-      useFreezeAi("vs-bot", isVip);
+      useFreezeAi();
       showToast(t("power_freeze") + " ✓");
       refreshPowerBar();
     });
@@ -1351,7 +2015,7 @@ function showMenu() {
   document.getElementById("btn-lab")!.onclick       = showLabScreen;
   document.getElementById("btn-tutorial")!.onclick = showTutorial;
   document.getElementById("btn-settings")!.onclick = showSettings;
-  document.getElementById("btn-profile")?.addEventListener("click", () => showToast("👤 " + t("profile") + " — em breve!"));
+  document.getElementById("btn-profile")?.addEventListener("click", () => { void showProfileScreen(); });
   document.getElementById("btn-god-menu")?.addEventListener("click", () => showGodModeModal());
   bindLangSelector();
 
@@ -1575,8 +2239,19 @@ function showLabScreen(): void {
 // ── TELAS PLACEHOLDER DE MODOS COMPETITIVOS ───────────────────────────────
 function showRankedScreen(): void {
   stopEnergyTimer();
-  const loggedIn = isLoggedIn();
-  if (!loggedIn) { showToast(t("ranked_login_required")); return; }
+  if (!canUseRanked()) {
+    showLoginRequiredModal(t("ranked_login_required"));
+    return;
+  }
+  const account = getCurrentPlayerAccount();
+  if (
+    SSO_PHOTO_PERMISSION_ENABLED &&
+    account?.avatarUrl &&
+    !hasSsoPhotoPermissionAnswer(account)
+  ) {
+    showSsoPhotoPermissionModal(() => showRankedScreen());
+    return;
+  }
   app.innerHTML = `
     <div class="screen setup-screen">
       <div class="screen-header">
@@ -1707,6 +2382,10 @@ function showNervesOfSteelScreen(): void {
 }
 
 function showX1Screen(): void {
+  if (!canUseOnlineFeatures()) {
+    showLoginRequiredModal(t("auth_feature_x1_required"));
+    return;
+  }
   stopEnergyTimer();
   app.innerHTML = `
     <div class="screen setup-screen">
@@ -3854,6 +4533,247 @@ html[data-theme="pink"] .btn-icon--lab { background: var(--ui-accent-soft); bord
 }
 
 /* ── btn-secondary ─────────────────────────────────────────── */
+/* â”€â”€ Auth / Perfil â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.auth-screen,
+.profile-screen {
+  justify-content: flex-start;
+  gap: 18px;
+}
+.auth-hero {
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.auth-hero h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.auth-subtitle,
+.auth-note {
+  color: var(--text-2);
+  font-size: .88rem;
+  line-height: 1.5;
+  text-align: center;
+}
+.auth-card {
+  width: min(100%, 460px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.auth-btn {
+  background: var(--bg-2);
+  border: 1px solid var(--border-strong);
+}
+.auth-btn--disabled,
+.auth-ghost-btn--disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.auth-ghost-btn {
+  width: 100%;
+}
+.profile-hero-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow);
+}
+.profile-hero-card--vip {
+  box-shadow: 0 0 0 1px rgba(234,179,8,.18), 0 20px 60px rgba(0,0,0,.2);
+}
+.profile-avatar {
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ui-accent-soft);
+  border: 1px solid var(--ui-accent-border);
+  flex-shrink: 0;
+}
+.profile-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-avatar-fallback {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--ui-accent);
+}
+.profile-hero-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.profile-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.profile-title-row strong {
+  font-size: 1.12rem;
+  color: var(--text);
+}
+.profile-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(234,179,8,.14);
+  border: 1px solid rgba(234,179,8,.35);
+  color: #f59e0b;
+  font-size: .72rem;
+  font-weight: 800;
+}
+.profile-provider {
+  color: var(--text-2);
+  font-size: .84rem;
+  font-weight: 600;
+}
+.profile-actions,
+.profile-inline-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.profile-stats-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.profile-stat-card,
+.profile-access-item {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.profile-stat-card span,
+.profile-access-item span {
+  color: var(--text-3);
+  font-size: .74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+.profile-stat-card strong,
+.profile-access-item strong {
+  color: var(--text);
+  font-size: .98rem;
+  font-weight: 800;
+}
+.profile-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 16px;
+}
+.profile-section-title {
+  color: var(--text);
+  font-size: .96rem;
+  font-weight: 800;
+}
+.profile-section-copy,
+.modal-copy {
+  color: var(--text-2);
+  font-size: .86rem;
+  line-height: 1.5;
+}
+.profile-banner {
+  width: 100%;
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ui-accent-soft) 58%, var(--bg-2) 42%) 0%, var(--bg-2) 100%);
+  border: 1px dashed var(--ui-accent-border);
+  color: var(--ui-accent);
+  font-size: .84rem;
+  font-weight: 700;
+  text-align: center;
+}
+.recovery-code-box {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: .98rem;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  text-align: center;
+  word-break: break-all;
+}
+.profile-access-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.modal-card--compact {
+  width: min(420px, calc(100vw - 32px));
+  gap: 16px;
+}
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.modal-input-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-3);
+  font-size: .74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+.modal-input {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: .92rem;
+  font-weight: 600;
+}
+.modal-input--code {
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
+@media (max-width: 560px) {
+  .profile-stats-grid,
+  .profile-access-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .btn-secondary {
   background: var(--bg-3); border: 1px solid var(--border-strong); border-radius: 12px;
   padding: 12px 16px; color: var(--text-2); font-weight: 700; font-size: .9rem;
@@ -3870,4 +4790,35 @@ document.addEventListener("click", (e) => {
 }, { passive: true });
 
 // ── Boot ──────────────────────────────────────────────────────────────────
-showMenu();
+async function routeFromAuthState(): Promise<void> {
+  if (!AUTH_ENABLED) {
+    await signInAsGuest();
+    showMenu();
+    return;
+  }
+
+  const usedBiometrics = await tryAutoLoginWithBiometrics();
+  if (usedBiometrics) {
+    showToast(t("auth_biometric_success"));
+  }
+  await refreshSessionIfNeeded();
+
+  const authState = getCurrentAuthState();
+  if (!authState.account) {
+    await showLoginScreen();
+    return;
+  }
+
+  showMenu();
+}
+
+async function bootApp(): Promise<void> {
+  godMode = loadGodMode();
+  if (!hasSavedTheme()) {
+    showThemeSetup();
+    return;
+  }
+  await routeFromAuthState();
+}
+
+void bootApp();

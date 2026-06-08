@@ -6,12 +6,19 @@ import {
   RECOVERY_CODE_LENGTH,
   RECOVERY_CODE_CHARSET,
 } from "../config/game-constants";
+import { validateRecoveryCode as validateRecoveryCodeHash } from "./salesforceIntegration";
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
 export interface RecoveryCodeState {
   code: string;
   createdAt: number;
+}
+
+export interface RecoveryCodeValidationResult {
+  valid: boolean;
+  source: "local" | "salesforce" | "none";
+  playerId?: string | null;
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────
@@ -29,6 +36,7 @@ function loadRecoveryState(): RecoveryCodeState | null {
 }
 
 function saveRecoveryState(state: RecoveryCodeState): void {
+  // TODO: migrar este armazenamento local para secure storage nativo quando o plugin estiver disponível.
   localStorage.setItem(RECOVERY_KEY, JSON.stringify(state));
 }
 
@@ -48,6 +56,10 @@ function generateCode(): string {
     code += RECOVERY_CODE_CHARSET[values[i]! % RECOVERY_CODE_CHARSET.length];
   }
   return code;
+}
+
+export function normalizeRecoveryCode(code: string): string {
+  return code.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 // ── Hash (SHA-256) ────────────────────────────────────────────────────────
@@ -100,4 +112,34 @@ export function getRecoveryCode(): string | null {
 
 export function hasRecoveryCode(): boolean {
   return loadRecoveryState() !== null;
+}
+
+export async function getRecoveryCodeHash(): Promise<string | null> {
+  const code = getRecoveryCode();
+  if (!code) return null;
+  return hashCode(code);
+}
+
+export async function validateRecoveryCodeInput(code: string): Promise<RecoveryCodeValidationResult> {
+  const normalizedCode = normalizeRecoveryCode(code);
+  if (normalizedCode.length !== RECOVERY_CODE_LENGTH) {
+    return { valid: false, source: "none" };
+  }
+
+  const localCode = getRecoveryCode();
+  if (localCode && normalizeRecoveryCode(localCode) === normalizedCode) {
+    return { valid: true, source: "local" };
+  }
+
+  const recoveryHash = await hashCode(normalizedCode);
+  const remoteValidation = await validateRecoveryCodeHash(recoveryHash);
+  if (remoteValidation.ok && remoteValidation.data?.valid) {
+    return {
+      valid: true,
+      source: "salesforce",
+      playerId: remoteValidation.data.playerId,
+    };
+  }
+
+  return { valid: false, source: "none" };
 }

@@ -4,6 +4,7 @@
  * Cache local e fallback offline obrigatórios.
  */
 import { SALESFORCE_CONFIG } from "../config/game-constants";
+import type { AuthProvider, PlayerAccount as AuthPlayerAccount } from "./authTypes";
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -159,6 +160,49 @@ async function sfFetch<T>(
   return { ok: false, error: "Salesforce integration not yet implemented" };
 }
 
+function buildPlayerEndpoint(playerId: string): string {
+  return `${SALESFORCE_CONFIG.endpoints.playerAccount}?playerId=${encodeURIComponent(playerId)}`;
+}
+
+function authProviderToSalesforce(provider: AuthProvider): PlayerAccount["loginProvider"] {
+  if (provider === "google" || provider === "apple" || provider === "steam") {
+    return provider;
+  }
+  return null;
+}
+
+function serializeJson(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "{}";
+  }
+}
+
+function buildPlayerSyncPayload(account: AuthPlayerAccount): Partial<PlayerAccount> & { gamePlayerId: string } {
+  return {
+    gamePlayerId: account.playerId,
+    displayName: account.displayName,
+    loginProvider: authProviderToSalesforce(account.provider),
+    profileJson: serializeJson({
+      avatarUrl: account.avatarUrl ?? null,
+      createdAt: account.createdAt,
+      deviceId: account.deviceId ?? null,
+      email: account.email ?? null,
+      linkedProviders: account.linkedProviders,
+      provider: account.provider,
+      updatedAt: account.lastLoginAt,
+      useSsoPhotoInRanking: account.useSsoPhotoInRanking ?? false,
+    }),
+    progressJson: "{}",
+    rewardsJson: "{}",
+    passeVipActive: false,
+    passeVipExpiresAt: null,
+    isBetaTester: false,
+    recoveryHash: null,
+  };
+}
+
 // ── API Pública ───────────────────────────────────────────────────────────
 
 export async function fetchGameConfig(): Promise<SalesforceResult<GameConfig>> {
@@ -206,7 +250,7 @@ export async function getPlayer(
   if (cached) return { ok: true, data: cached, fromCache: true };
 
   const result = await sfFetch<PlayerAccount>(
-    `${SALESFORCE_CONFIG.endpoints.playerAccount}/${playerId}`,
+    buildPlayerEndpoint(playerId),
   );
   if (result.ok && result.data) {
     cache.set(cacheKey, result.data);
@@ -218,10 +262,14 @@ export async function upsertPlayer(
   player: Partial<PlayerAccount> & { gamePlayerId: string },
 ): Promise<SalesforceResult<{ success: boolean }>> {
   cache.clear();
-  return sfFetch<{ success: boolean }>(
+  const result = await sfFetch<{ success: boolean }>(
     SALESFORCE_CONFIG.endpoints.playerAccount,
     { method: "POST", body: player },
   );
+  if (!result.ok) {
+    enqueue(SALESFORCE_CONFIG.endpoints.playerAccount, player);
+  }
+  return result;
 }
 
 export async function validateRecoveryCode(
@@ -258,4 +306,54 @@ export async function processRetryQueue(): Promise<number> {
 
   saveRetryQueue(remaining);
   return processed;
+}
+
+export async function syncPlayerAccountToSalesforce(
+  account: AuthPlayerAccount,
+): Promise<SalesforceResult<{ success: boolean }>> {
+  return upsertPlayer(buildPlayerSyncPayload(account));
+}
+
+export async function fetchPlayerAccountFromSalesforce(
+  playerId: string,
+): Promise<SalesforceResult<PlayerAccount>> {
+  return getPlayer(playerId);
+}
+
+export async function updatePlayerRecoveryHash(
+  playerId: string,
+  recoveryHash: string,
+): Promise<SalesforceResult<{ success: boolean }>> {
+  const payload = { playerId, recoveryHash };
+  const result = await sfFetch<{ success: boolean }>(
+    SALESFORCE_CONFIG.endpoints.recovery,
+    { method: "POST", body: payload },
+  );
+  if (!result.ok) {
+    enqueue(SALESFORCE_CONFIG.endpoints.recovery, payload);
+  }
+  return result;
+}
+
+export async function updateSsoPhotoPermission(
+  playerId: string,
+  useSsoPhoto: boolean,
+): Promise<SalesforceResult<{ success: boolean }>> {
+  return upsertPlayer({
+    gamePlayerId: playerId,
+    profileJson: serializeJson({
+      useSsoPhotoInRanking: useSsoPhoto,
+      updatedAt: new Date().toISOString(),
+    }),
+  });
+}
+
+export async function updatePlayerProfileJson(
+  playerId: string,
+  profile: unknown,
+): Promise<SalesforceResult<{ success: boolean }>> {
+  return upsertPlayer({
+    gamePlayerId: playerId,
+    profileJson: serializeJson(profile),
+  });
 }

@@ -34,7 +34,7 @@ export const SALESFORCE_PLAYER_SYNC_ENABLED = true;
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const GAME_CONSTANTS = {
-  version: "v0.01.69",
+  version: "v0.01.70",
   energy: {
     max: 10,
     regenMinutes: 2,
@@ -338,8 +338,8 @@ export const SALESFORCE_CONFIG = {
     config: "/services/apexrest/dbm/config",
     feedback: "/services/apexrest/dbm/feedback",
     rewardCode: "/services/apexrest/dbm/reward-code",
-    playerAccount: "/services/apexrest/dbm/player",
-    recovery: "/services/apexrest/dbm/recovery",
+    playerAccount: "/services/apexrest/game/player",
+    recovery: "/services/apexrest/game/player/recovery",
   },
   /** Nome do Account especial de configuração */
   gameConfigAccountName: "GAME_CONFIG",
