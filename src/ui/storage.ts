@@ -1,5 +1,11 @@
 /** Persistência em localStorage — progresso, rank, energia, god mode, tema, pulos */
-import { ENERGY_REGEN_MINUTES, MAX_ENERGY as MAX_ENERGY_CONFIG, SKIPS_PER_WEEK as SKIPS_PER_WEEK_CONFIG } from "../config/game-constants";
+import {
+  ENERGY_REGEN_MINUTES,
+  MAX_ENERGY as MAX_ENERGY_CONFIG,
+  SECURE_SESSION_STORAGE_ENABLED,
+  SKIPS_PER_WEEK as SKIPS_PER_WEEK_CONFIG,
+} from "../config/game-constants";
+import type { AuthProvider, AuthSession, PlayerAccount } from "../services/authTypes";
 import { t } from "./i18n";
 
 // ── Pulos de fase (skip semanal) ──────────────────────────────────────────
@@ -116,6 +122,171 @@ export function getThemePlayerColors(theme: Theme = loadTheme()): readonly [stri
   return THEME_PLAYER_COLORS[theme];
 }
 
+// ── Conta / Sessão ────────────────────────────────────────────────────────
+
+const DEVICE_ID_KEY = "dab_device_id";
+const PLAYER_ACCOUNT_KEY = "dab_player_account";
+const AUTH_SESSION_KEY = "dab_auth_session";
+const DEFAULT_PLAYER_NAME = "Jogador";
+
+interface StorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+function loadStoredJson<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredJson<T>(key: string, value: T): void {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function buildRandomId(prefix: string): string {
+  const randomChunk = Math.random().toString(36).slice(2, 10);
+  return `${prefix}_${Date.now().toString(36)}_${randomChunk}`;
+}
+
+function secureSessionStorageAvailable(): boolean {
+  return false;
+}
+
+function getSessionStorageBackend(): StorageLike {
+  // TODO: trocar por secure storage nativo do Capacitor quando o plugin for configurado.
+  return localStorage;
+}
+
+function normalizeDisplayName(name: string | undefined): string {
+  const trimmed = name?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : DEFAULT_PLAYER_NAME;
+}
+
+function normalizeLinkedProviders(linkedProviders: PlayerAccount["linkedProviders"] | undefined): PlayerAccount["linkedProviders"] {
+  if (!Array.isArray(linkedProviders)) return [];
+  return linkedProviders.filter((provider) =>
+    !!provider &&
+    typeof provider.provider === "string" &&
+    typeof provider.providerUserId === "string" &&
+    typeof provider.linkedAt === "string",
+  );
+}
+
+function normalizePlayerAccount(account: PlayerAccount): PlayerAccount {
+  return {
+    ...account,
+    displayName: normalizeDisplayName(account.displayName),
+    linkedProviders: normalizeLinkedProviders(account.linkedProviders),
+  };
+}
+
+function isValidAuthProvider(provider: unknown): provider is AuthProvider {
+  return provider === "guest" || provider === "google" || provider === "apple" || provider === "steam";
+}
+
+export function getOrCreateDeviceId(): string {
+  const existing = localStorage.getItem(DEVICE_ID_KEY);
+  if (existing && existing.trim()) return existing;
+  const next = buildRandomId("device");
+  localStorage.setItem(DEVICE_ID_KEY, next);
+  return next;
+}
+
+export function getCurrentPlayerAccount(): PlayerAccount | null {
+  const stored = loadStoredJson<Partial<PlayerAccount>>(PLAYER_ACCOUNT_KEY);
+  if (!stored || typeof stored !== "object" || !stored.playerId || !isValidAuthProvider(stored.provider)) {
+    return null;
+  }
+  const account: PlayerAccount = {
+    playerId: stored.playerId,
+    displayName: normalizeDisplayName(stored.displayName),
+    provider: stored.provider,
+    isGuest: Boolean(stored.isGuest),
+    isSsoLoggedIn: Boolean(stored.isSsoLoggedIn),
+    createdAt: typeof stored.createdAt === "string" ? stored.createdAt : new Date().toISOString(),
+    lastLoginAt: typeof stored.lastLoginAt === "string" ? stored.lastLoginAt : new Date().toISOString(),
+    linkedProviders: normalizeLinkedProviders(stored.linkedProviders),
+    ...(typeof stored.email === "string" ? { email: stored.email } : {}),
+    ...(typeof stored.avatarUrl === "string" ? { avatarUrl: stored.avatarUrl } : {}),
+    ...(typeof stored.useSsoPhotoInRanking === "boolean"
+      ? { useSsoPhotoInRanking: stored.useSsoPhotoInRanking }
+      : {}),
+    ...(typeof stored.deviceId === "string"
+      ? { deviceId: stored.deviceId }
+      : { deviceId: getOrCreateDeviceId() }),
+  };
+  return normalizePlayerAccount(account);
+}
+
+export function saveCurrentPlayerAccount(account: PlayerAccount): void {
+  const normalized = normalizePlayerAccount({
+    ...account,
+    deviceId: account.deviceId ?? getOrCreateDeviceId(),
+  });
+  saveStoredJson(PLAYER_ACCOUNT_KEY, normalized);
+
+  const profile = loadProfile();
+  if (profile.name !== normalized.displayName) {
+    saveProfile({ ...profile, name: normalized.displayName });
+  }
+}
+
+export function clearCurrentPlayerAccount(): void {
+  localStorage.removeItem(PLAYER_ACCOUNT_KEY);
+}
+
+export function getAuthSession(): AuthSession | null {
+  const backend = getSessionStorageBackend();
+  try {
+    const raw = backend.getItem(AUTH_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AuthSession>;
+    if (!parsed.playerId || !isValidAuthProvider(parsed.provider)) return null;
+    const session: AuthSession = {
+      playerId: parsed.playerId,
+      provider: parsed.provider,
+      isSecurelyStored: Boolean(parsed.isSecurelyStored),
+      ...(typeof parsed.accessToken === "string" ? { accessToken: parsed.accessToken } : {}),
+      ...(typeof parsed.idToken === "string" ? { idToken: parsed.idToken } : {}),
+      ...(typeof parsed.expiresAt === "string" ? { expiresAt: parsed.expiresAt } : {}),
+    };
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+export function saveAuthSession(session: AuthSession): void {
+  const backend = getSessionStorageBackend();
+  const securelyStored = SECURE_SESSION_STORAGE_ENABLED && secureSessionStorageAvailable();
+  backend.setItem(AUTH_SESSION_KEY, JSON.stringify({
+    ...session,
+    isSecurelyStored: securelyStored,
+  }));
+  if (!securelyStored) {
+    // TODO: migrar sessão para secure storage nativo assim que o plugin estiver disponível.
+  }
+}
+
+export function clearAuthSession(): void {
+  getSessionStorageBackend().removeItem(AUTH_SESSION_KEY);
+}
+
+export function isSsoLoggedIn(): boolean {
+  const account = getCurrentPlayerAccount();
+  if (!account) return false;
+  return account.isSsoLoggedIn && !account.isGuest && account.provider !== "guest";
+}
+
+export function isGuestUser(): boolean {
+  return getCurrentPlayerAccount()?.isGuest ?? false;
+}
+
 // ── Perfil / XP ───────────────────────────────────────────────────────────
 
 export interface StageProgress {
@@ -132,7 +303,7 @@ export interface PlayerProfile {
 const PROFILE_KEY = "dab_profile";
 
 function defaultProfile(): PlayerProfile {
-  return { name: "Jogador", xp: 0, stageProgress: {} };
+  return { name: DEFAULT_PLAYER_NAME, xp: 0, stageProgress: {} };
 }
 
 export function loadProfile(): PlayerProfile {
@@ -335,8 +506,7 @@ export function saveGodMode(cfg: GodModeConfig): void {
 export function isLoggedIn(): boolean {
   const god = loadGodMode();
   if (god.simulateSso) return true;
-  // TODO: verificar SSO real quando implementado
-  return false;
+  return isSsoLoggedIn();
 }
 
 /** Verifica se o Passe VIP está ativo (real ou simulado via God Mode) */

@@ -1,9 +1,16 @@
 import {
   consumeNervesAttemptIndex,
+  getAuthSession,
+  getCurrentPlayerAccount,
+  isGuestUser,
+  isLoggedIn,
+  isSsoLoggedIn,
   loadEnergy,
   loadNervesProgress,
   msToNextEnergy,
   resetNervesProgress,
+  saveAuthSession,
+  saveCurrentPlayerAccount,
   saveEnergy,
 } from "./storage";
 import { ENERGY_REGEN_MINUTES, GAME_CONSTANTS } from "../config/game-constants";
@@ -65,5 +72,40 @@ describe("energy storage", () => {
     resetNervesProgress();
 
     expect(loadNervesProgress().attemptsStarted).toBe(0);
+  });
+
+  it("persiste conta e sessao de usuario com fallback seguro", () => {
+    saveCurrentPlayerAccount({
+      playerId: "player_google_1",
+      displayName: "Rodrigo",
+      provider: "google",
+      isGuest: false,
+      isSsoLoggedIn: true,
+      email: "rodrigo@example.com",
+      createdAt: "2026-06-08T00:00:00.000Z",
+      lastLoginAt: "2026-06-08T00:00:00.000Z",
+      linkedProviders: [],
+    });
+
+    saveAuthSession({
+      playerId: "player_google_1",
+      provider: "google",
+      accessToken: "token-publico-teste",
+      isSecurelyStored: true,
+    });
+
+    expect(getCurrentPlayerAccount()?.displayName).toBe("Rodrigo");
+    expect(getCurrentPlayerAccount()?.deviceId).toBeTruthy();
+    expect(getAuthSession()).toEqual({
+      playerId: "player_google_1",
+      provider: "google",
+      accessToken: "token-publico-teste",
+      idToken: undefined,
+      expiresAt: undefined,
+      isSecurelyStored: false,
+    });
+    expect(isSsoLoggedIn()).toBe(true);
+    expect(isLoggedIn()).toBe(true);
+    expect(isGuestUser()).toBe(false);
   });
 });

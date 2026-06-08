@@ -12,6 +12,24 @@ export const GOD_MODE_SIMULATE_VIP_ENABLED = true;
 export const GOD_MODE_LIMIT_RESET_ENABLED = true;
 
 // ══════════════════════════════════════════════════════════════════════════════
+// AUTH / CONTA
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const AUTH_ENABLED = true;
+export const AUTH_GOOGLE_ENABLED = true;
+export const AUTH_APPLE_ENABLED = true;
+export const AUTH_STEAM_FUTURE_ENABLED = false;
+export const GUEST_LOGIN_ENABLED = true;
+export const BIOMETRIC_LOGIN_ENABLED = true;
+export const SECURE_SESSION_STORAGE_ENABLED = true;
+export const REMEMBER_LOGIN_ENABLED = true;
+export const PROFILE_SCREEN_ENABLED = true;
+export const SSO_PHOTO_PERMISSION_ENABLED = true;
+export const ACCOUNT_RECOVERY_ENABLED = true;
+export const ACCOUNT_RECOVERY_REQUIRE_LOGIN_TO_COPY = true;
+export const SALESFORCE_PLAYER_SYNC_ENABLED = true;
+
+// ══════════════════════════════════════════════════════════════════════════════
 // VERSÃO
 // ══════════════════════════════════════════════════════════════════════════════
 
