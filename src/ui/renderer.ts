@@ -26,6 +26,7 @@ function boardPalette() {
     bg: cssVar("--bg-2", "#ffffff"),
     emptyLine: cssVar("--border-strong", "#d1d5db"),
     hoverLine: cssVar("--ui-accent", "#64748b"),
+    guidedLine: cssVar("--ui-accent", "#64748b"),
     dot: cssVar("--ui-accent-border", "#334155"),
   };
 }
@@ -70,6 +71,7 @@ export function render(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   hoverLine: Line | null,
+  guidedLine: Line | null,
   _teamMode = false,
 ): void {
   const { width, height } = canvasSize(state.gridRows, state.gridCols);
@@ -108,6 +110,7 @@ export function render(
 
   for (const line of Object.values(state.lines)) {
     const isHover = hoverLine !== null && lineKey(hoverLine) === lineKey(line);
+    const isGuided = guidedLine !== null && lineKey(guidedLine) === lineKey(line);
     const x1 = dotX(line.from.col);
     const y1 = dotY(line.from.row);
     const x2 = dotX(line.to.col);
@@ -117,6 +120,8 @@ export function render(
       strokeSegment(ctx, x1, y1, x2, y2, playerColor(state, line.ownerId), 7.75, "rgba(0,0,0,0.36)");
     } else if (isHover) {
       strokeSegment(ctx, x1, y1, x2, y2, (currentPlayer?.color ?? palette.hoverLine) + "ee", 6.75, "rgba(0,0,0,0.28)");
+    } else if (isGuided) {
+      strokeSegment(ctx, x1, y1, x2, y2, (currentPlayer?.color ?? palette.guidedLine) + "ee", 6.25, "rgba(245,158,11,0.30)");
     } else {
       strokeSegment(ctx, x1, y1, x2, y2, palette.emptyLine, 3.5, "rgba(0,0,0,0.16)");
     }

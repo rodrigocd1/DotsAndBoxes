@@ -5,32 +5,27 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const appVersionFile = path.join(repoRoot, "src", "ui", "main.ts");
+const appVersionSources = [
+  {
+    file: path.join(repoRoot, "src", "config", "game-constants.ts"),
+    pattern: /version:\s*"([^"]+)"/,
+    label: "a versao do app em src/config/game-constants.ts",
+  },
+  {
+    file: path.join(repoRoot, "src", "ui", "main.ts"),
+    pattern: /const VERSION = "([^"]+)"/,
+    label: "a versao do app em src/ui/main.ts",
+  },
+];
 const androidGradleFile = path.join(repoRoot, "android", "app", "build.gradle");
 const apkSource = path.join(repoRoot, "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk");
 
 function readVersionFrom(text, pattern, label) {
   const match = text.match(pattern);
   if (!match?.[1]) {
-    throw new Error(`Não foi possível encontrar ${label}.`);
+    throw new Error(`Nao foi possivel encontrar ${label}.`);
   }
   return match[1];
-}
-
-async function resolveDesktopDir() {
-  const home = os.homedir();
-  const candidates = [
-    path.join(home, "Desktop"),
-    path.join(home, "OneDrive", "Desktop"),
-    path.join(home, "Área de Trabalho"),
-    path.join(home, "OneDrive", "Área de Trabalho"),
-  ];
-
-  for (const candidate of candidates) {
-    if (await requireExists(candidate)) return candidate;
-  }
-
-  return path.join(home, "Desktop");
 }
 
 async function requireExists(targetPath) {
@@ -42,26 +37,54 @@ async function requireExists(targetPath) {
   }
 }
 
+async function readAppVersion() {
+  for (const source of appVersionSources) {
+    if (!(await requireExists(source.file))) continue;
+    const text = await readFile(source.file, "utf8");
+    const match = text.match(source.pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  const labels = appVersionSources.map((source) => source.label).join(" ou ");
+  throw new Error(`Nao foi possivel encontrar ${labels}.`);
+}
+
+async function resolveDesktopDir() {
+  const home = os.homedir();
+  const candidates = [
+    path.join(home, "Desktop"),
+    path.join(home, "OneDrive", "Desktop"),
+    path.join(home, "Area de Trabalho"),
+    path.join(home, "OneDrive", "Area de Trabalho"),
+    path.join(home, "Área de Trabalho"),
+    path.join(home, "OneDrive", "Área de Trabalho"),
+  ];
+
+  for (const candidate of candidates) {
+    if (await requireExists(candidate)) return candidate;
+  }
+
+  return path.join(home, "Desktop");
+}
+
 async function main() {
-  // Regra fixa: o APK exportado sempre deve carregar o mesmo nome da versão
-  // exibida no app e registrada no Android. Se divergir, falha para evitar erro humano.
-  const [appTs, gradle, apkExists] = await Promise.all([
-    readFile(appVersionFile, "utf8"),
+  // Keep Android metadata and displayed app version aligned with the exported APK name.
+  const [appVersion, gradle, apkExists] = await Promise.all([
+    readAppVersion(),
     readFile(androidGradleFile, "utf8"),
     requireExists(apkSource),
   ]);
 
   if (!apkExists) {
-    throw new Error(`APK não encontrada em ${apkSource}`);
+    throw new Error(`APK nao encontrada em ${apkSource}`);
   }
 
-  const appVersion = readVersionFrom(appTs, /const VERSION = "([^"]+)"/, "a versão do app em src/ui/main.ts");
   const androidVersion = readVersionFrom(gradle, /versionName\s+"([^"]+)"/, "a versionName do Android");
 
   if (appVersion !== androidVersion) {
     throw new Error(
-      `Versões divergentes: app=${appVersion} e android=${androidVersion}. ` +
-      `A exportação do APK foi bloqueada para manter o nome consistente.`
+      `Versoes divergentes: app=${appVersion} e android=${androidVersion}. ` +
+      `A exportacao do APK foi bloqueada para manter o nome consistente.`
     );
   }
 

@@ -186,6 +186,8 @@ interface GameSession {
 
 let session: GameSession | null = null;
 let hoverLine: Line | null = null;
+let guidedLine: Line | null = null;
+let redrawGame: (() => void) | null = null;
 let godMode: GodModeConfig = loadGodMode();
 
 // ── Timers globais (Timer Attack / Nervos de Aço) ─────────────────────────
@@ -566,6 +568,17 @@ function sectionTitle(icon: string, label: string): string {
     </span>`;
 }
 
+function stackedSectionTitle(icon: string, title: string, subtitle: string): string {
+  return `
+    <span class="section-title section-title--stacked">
+      <span class="section-title-icon">${icon}</span>
+      <span class="section-title-copy">
+        <span class="section-title-main">${title}</span>
+        <span class="section-title-sub">${subtitle}</span>
+      </span>
+    </span>`;
+}
+
 function themeLabel(theme: Theme): string {
   if (theme === "dark") return t("theme_dark");
   if (theme === "light") return t("theme_light");
@@ -724,13 +737,20 @@ function rankProgressSVG(xp: number): string {
     <span class="rank-ring-icon">${tier.icon}</span>`;
 }
 
-function energyHTML(): string {
+function energyHTML(variant: "default" | "game" = "default"): string {
   const cur = godMode.unlimitedEnergy ? MAX_ENERGY : loadEnergy();
   const pct = (cur / MAX_ENERGY) * 100;
   const label = godMode.unlimitedEnergy ? "∞" : `${cur}/${MAX_ENERGY}`;
-  const countdown = godMode.unlimitedEnergy || cur >= MAX_ENERGY
+  const countdown = variant === "game" || godMode.unlimitedEnergy || cur >= MAX_ENERGY
     ? ""
     : `<span class="energy-timer">${t("energy_next", { s: Math.max(1, Math.ceil(msToNextEnergy() / 1000)) })}</span>`;
+  if (variant === "game") {
+    return `
+      <div class="energy-row energy-row--minimal">
+        <span class="energy-bolt">âš¡</span>
+        <span class="energy-count">${label}</span>
+      </div>`;
+  }
   const dots = Array.from({ length: MAX_ENERGY }, (_, i) =>
     `<span class="e-dot ${i < cur ? "full" : ""}"></span>`
   ).join("");
@@ -1378,7 +1398,12 @@ function showToast(msg: string) {
 
 // ── Energia ───────────────────────────────────────────────────────────────
 let energyTimer: ReturnType<typeof setInterval> | null = null;
-function refreshEnergyDisplay() { document.querySelectorAll("#energy-display").forEach((el) => { el.innerHTML = energyHTML(); }); }
+function refreshEnergyDisplay() {
+  document.querySelectorAll<HTMLElement>("[data-energy-variant]").forEach((el) => {
+    const variant = el.dataset["energyVariant"] === "game" ? "game" : "default";
+    el.innerHTML = energyHTML(variant);
+  });
+}
 function startEnergyTimer() { if (energyTimer) clearInterval(energyTimer); energyTimer = setInterval(refreshEnergyDisplay, 1_000); }
 function stopEnergyTimer() { if (energyTimer) { clearInterval(energyTimer); energyTimer = null; } }
 
@@ -1411,10 +1436,8 @@ function bindLangSelector(root: Element | Document = document, onChange: () => v
 }
 
 // ── MENU ──────────────────────────────────────────────────────────────────
-let titleClicks = 0; let titleTimer: ReturnType<typeof setTimeout> | null = null;
-
 function showThemeSetup() {
-  stopEnergyTimer(); session = null; hoverLine = null;
+  stopEnergyTimer(); session = null; hoverLine = null; guidedLine = null; redrawGame = null;
   const lang = getCurrentLang();
   const copy = THEME_SETUP_COPY[lang];
   let selectedTheme: Theme | null = null;
@@ -1561,6 +1584,8 @@ async function showLoginScreen(): Promise<void> {
   stopEnergyTimer();
   session = null;
   hoverLine = null;
+  guidedLine = null;
+  redrawGame = null;
 
   const authState = getCurrentAuthState();
   const biometricReady = hasBiometricLoginEnabled() && !!authState.session && await isBiometricAvailable();
@@ -1634,6 +1659,8 @@ async function showProfileScreen(options: { revealRecovery?: boolean } = {}): Pr
   stopEnergyTimer();
   session = null;
   hoverLine = null;
+  guidedLine = null;
+  redrawGame = null;
 
   const authState = getCurrentAuthState();
   const account = authState.account;
@@ -1841,17 +1868,31 @@ async function showProfileScreen(options: { revealRecovery?: boolean } = {}): Pr
   });
 }
 
-function powerBarHTML(): string {
-  const isVip      = isVipActive();
-  const maxStage   = getEffectiveMaxStage();
-  const tipUnlocked   = maxStage >= MASTER_TIP_UNLOCK_STAGE;
+function getPowerUiState() {
+  const isVip = isVipActive();
+  const maxStage = getEffectiveMaxStage();
+  const tipUnlocked = maxStage >= MASTER_TIP_UNLOCK_STAGE;
   const radarUnlocked = maxStage >= TACTICAL_RADAR_UNLOCK_STAGE;
-  const tipCount   = tipUnlocked ? getMasterTipDailyRemaining(isVip) : 0;
+  const tipCount = tipUnlocked ? getMasterTipDailyRemaining(isVip) : 0;
   const radarCount = radarUnlocked ? getRadarStock() : 0;
-  const canFreeze  = radarUnlocked && canFreezeAi("vs-bot", isVip);
-  const tipDisabled    = !tipUnlocked || tipCount === 0;
-  const radarDisabled  = !radarUnlocked || radarCount === 0;
-  const freezeDisabled = !radarUnlocked || !canFreeze;
+  const canFreeze = radarUnlocked && canFreezeAi("vs-bot", isVip);
+
+  return {
+    isVip,
+    tipUnlocked,
+    radarUnlocked,
+    tipCount,
+    radarCount,
+    canFreeze,
+    tipDisabled: !tipUnlocked || tipCount === 0,
+    radarDisabled: !radarUnlocked || radarCount === 0,
+    freezeDisabled: !radarUnlocked || !canFreeze,
+  };
+}
+
+function powerBarHTML(): string {
+  const power = getPowerUiState();
+  const { isVip, tipUnlocked, radarUnlocked, tipCount, radarCount, canFreeze, tipDisabled, radarDisabled, freezeDisabled } = power;
   return `
     <div class="power-bar" id="power-bar">
       <button class="power-btn ${tipDisabled ? "power-btn--disabled" : ""}" id="pwr-tip" title="${t("power_master_tip")}">
@@ -1870,19 +1911,24 @@ function powerBarHTML(): string {
 }
 
 function bindPowerBar(): void {
-  const isVip = isVipActive();
-  const maxStage = getEffectiveMaxStage();
-  const tipUnlocked = maxStage >= MASTER_TIP_UNLOCK_STAGE;
-  const radarUnlocked = maxStage >= TACTICAL_RADAR_UNLOCK_STAGE;
+  const power = getPowerUiState();
+  const { isVip, tipUnlocked, radarUnlocked } = power;
 
   document.getElementById("pwr-tip")?.addEventListener("click", () => {
     if (!tipUnlocked) { showToast(t("power_locked_stage", { stage: MASTER_TIP_UNLOCK_STAGE })); return; }
     if (!canUseMasterTip("vs-bot", isVip)) { showToast(t("power_no_tip")); return; }
     const n = getMasterTipDailyRemaining(isVip);
     showPowerConfirm(t("power_confirm_tip"), t("power_you_have", { n }), () => {
+      const currentSession = session;
+      const currentState = currentSession?.controller.getState();
+      if (!currentSession || !currentState || currentState.status === "finished" || currentSession.botThinking || currentSession.botPlayerId === currentState.currentPlayerId) {
+        return;
+      }
       useMasterTip();
+      guidedLine = chooseBotMove(currentState, "impossivel");
       showToast(t("power_tip_lang"));
       refreshPowerBar();
+      redrawGame?.();
     });
   });
 
@@ -1920,7 +1966,7 @@ function refreshPowerBar(): void {
 }
 
 function showMenu() {
-  stopEnergyTimer(); session = null; hoverLine = null;
+  stopEnergyTimer(); session = null; hoverLine = null; guidedLine = null; redrawGame = null;
   const profile = loadProfile();
   const rank = rankLabel(profile.xp);
   const done = Object.entries(profile.stageProgress).filter(([stageId, progress]) =>
@@ -1936,7 +1982,7 @@ function showMenu() {
       <div class="topbar">
         <div></div>
         <div class="topbar-right">
-          <div id="energy-display" class="menu-energy-chip">${energyHTML()}</div>
+          <div class="menu-energy-chip" data-energy-variant="default">${energyHTML()}</div>
           <button class="btn-settings-pill" id="btn-settings" title="${t("settings")}" aria-label="${t("settings")}">${ICO_SETTINGS}<span>${t("settings")}</span></button>
           <button class="btn-profile-icon" id="btn-profile" title="${t("profile")}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
@@ -2050,15 +2096,6 @@ function showMenu() {
   document.getElementById("btn-mode-x1")?.addEventListener("click", () => {
     showX1Screen();
   });
-
-  document.getElementById("menu-title")!.addEventListener("click", () => {
-    titleClicks++; if (titleTimer) clearTimeout(titleTimer);
-    titleTimer = setTimeout(() => { titleClicks = 0; }, 3000);
-    if (titleClicks >= 7) {
-      titleClicks = 0; godMode.unlimitedEnergy = !godMode.unlimitedEnergy; saveGodMode(godMode);
-      showToast(godMode.unlimitedEnergy ? t("god_activated") : t("god_deactivated")); showMenu();
-    }
-  });
 }
 
 // ── MAPA ARCADE ───────────────────────────────────────────────────────────
@@ -2078,7 +2115,7 @@ function showArcadeMap() {
       <div class="screen-header">
         <button class="btn-back" id="btn-back">${t("back")}</button>
         <h2>${sectionTitle(ICO_STAR, t("menu_arcade"))}</h2>
-        <div id="energy-display" style="font-size:.75rem">${energyHTML()}</div>
+        <div style="font-size:.75rem" data-energy-variant="default">${energyHTML()}</div>
       </div>
       <div class="stage-grid">${cells}</div>
     </div>`;
@@ -2674,14 +2711,21 @@ function showGame() {
   if (!session) return;
   clearActiveTimers();
   const s = session; stopEnergyTimer();
+  guidedLine = null;
+  redrawGame = null;
+  const initialState = s.controller.getState();
+  const hasPowerHud = s.mode === "vs-bot" || s.mode === "lab";
+  const isLargeBoard = Math.max(initialState.gridRows, initialState.gridCols) > 4;
   const nervesMoveTime = s.mode === "nerves"
     ? getNervesOfSteelMoveTime(isVipActive())
     : 0;
   let nervesMoveTickLeft = nervesMoveTime;
   const timerAttackBoardNumber = (s.timerAttackBoardIndex ?? 0) + 1;
   const timerAttackBoardTotal = s.timerAttackCourse?.length ?? TIMER_ATTACK_BOARD_COUNT;
+  const arcadeStage = s.mode === "arcade" ? getStage(s.stageId!) : null;
+  const arcadePhaseTitle = arcadeStage ? (getStageTitle(arcadeStage).split(" - ")[0] ?? getStageTitle(arcadeStage)) : "";
   const modeTitle = s.mode === "arcade"
-    ? sectionTitle(ICO_STAR, getStageTitle(getStage(s.stageId!)))
+    ? stackedSectionTitle(ICO_STAR, arcadePhaseTitle, getDifficultyLabel(arcadeStage!.baseDifficulty))
     : s.mode === "vs-bot"
     ? sectionTitle(ICO_BARBELL, `${t("menu_bot")} · ${getDiffLabel(s.botDifficulty!)}`)
     : s.mode === "lab"
@@ -2693,13 +2737,14 @@ function showGame() {
     : sectionTitle(ICO_USERS, s.teamMode ? t("teams_2v2") : t("n_players", { n: s.playerCount! }));
 
   app.innerHTML = `
-    <div class="screen game-screen">
+    <div class="screen game-screen ${hasPowerHud ? "game-screen--powers" : ""} ${isLargeBoard ? "game-screen--large-board" : ""}">
       <div class="game-hud">
         <div class="screen-header">
           <button class="btn-back" id="btn-back">${t("back")}</button>
           <h2>${modeTitle}</h2>
           <div class="game-header-actions">
-            ${(s.mode === "vs-bot" || s.mode === "lab" || s.mode === "timer-attack") ? `<button class="btn-restart-corner" id="btn-restart-game" title="${t("restart")}" aria-label="${t("restart")}">${ICO_RESTART}</button>` : `<span class="header-end-spacer"></span>`}
+            ${(s.mode === "vs-bot" || s.mode === "lab" || s.mode === "timer-attack") ? `<button class="btn-restart-corner" id="btn-restart-game" title="${t("restart")}" aria-label="${t("restart")}">${ICO_RESTART}</button>` : ""}
+            <div class="game-energy-chip" data-energy-variant="game">${energyHTML("game")}</div>
             <button class="btn-god-corner" id="btn-god-game" title="${t("god_mode")}" aria-label="${t("god_mode")}">👑</button>
           </div>
         </div>
@@ -2721,14 +2766,13 @@ function showGame() {
             ${s.timerAttackBestTotalMs != null ? `<span class="ta-best">${t("timer_attack_best_time", { time: formatTimerAttackTime(s.timerAttackBestTotalMs) })}</span>` : ""}
           </div>` : ""}
         ${s.mode === "nerves" ? `<div class="nerves-hud"><span class="nerves-lives" id="nerves-lives">${"❤️".repeat(s.nervesLives!)}</span><span class="nerves-round-badge" id="nerves-round-badge">${t("nerves_round",{n:s.nervesRound!})}</span><span class="nerves-mtimer ${nervesMoveTickLeft <= 5 ? "nerves-mtimer--danger" : ""}" id="nerves-mtimer">${nervesMoveTime}s</span></div>` : ""}
-        ${(s.mode === "vs-bot" || s.mode === "lab") ? powerBarHTML() : ""}
-        ${s.mode === "arcade" ? `<div id="energy-display" class="game-energy-display">${energyHTML()}</div>` : ""}
+        ${hasPowerHud ? powerBarHTML() : ""}
       </div>
       <div class="canvas-wrapper"><canvas id="board"></canvas></div>
     </div>`;
 
   document.getElementById("btn-back")!.onclick = () => {
-    clearActiveTimers(); session = null; hoverLine = null;
+    clearActiveTimers(); session = null; hoverLine = null; guidedLine = null; redrawGame = null;
     if (s.mode === "arcade") showArcadeMap();
     else if (s.mode === "vs-bot") showBotSetup();
     else if (s.mode === "lab") showLabScreen();
@@ -2739,7 +2783,7 @@ function showGame() {
   document.getElementById("btn-restart-game")?.addEventListener("click", () => {
     if (s.mode !== "vs-bot" && s.mode !== "lab" && s.mode !== "timer-attack") return;
     const st = s.controller.getState();
-    hoverLine = null; clearActiveTimers();
+    hoverLine = null; guidedLine = null; clearActiveTimers();
     if (s.mode === "lab") startLabGame(s.botDifficulty!, st.gridSize);
     else if (s.mode === "timer-attack") startTimerAttackRun(s.botDifficulty!);
     else startBotGame(s.botDifficulty!, st.gridSize);
@@ -2759,8 +2803,9 @@ function showGame() {
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    render(ctx, st, hoverLine, s.teamMode ?? false); updateHUD();
+    render(ctx, st, hoverLine, guidedLine, s.teamMode ?? false); updateHUD();
   }
+  redrawGame = draw;
 
   function updateHUD() {
     const st = s.controller.getState();
@@ -3009,6 +3054,7 @@ function showGame() {
     setTimeout(() => {
       if (!session||session!==s) return; const st=s.controller.getState();
       if (st.status==="finished"||!isBotTurn()) return;
+      guidedLine = null;
       s.controller.playLine(chooseBotMove(st,s.botDifficulty!)); s.botThinking=false; draw();
       if (s.controller.getState().status==="finished") return;
       if (s.mode === "nerves") { nervesMoveTickLeft = nervesMoveTime; startNervesMoveTimer(); }
@@ -3043,6 +3089,7 @@ function showGame() {
       if (!session||session!==s||!godMode.autoPlayMode) return;
       const st=s.controller.getState();
       if (st.status==="finished"||isBotTurn()) return;
+      guidedLine = null;
       s.controller.playLine(chooseBotMove(st, diff)); draw();
       if (s.controller.getState().status==="finished") return;
       if (isBotTurn()) scheduleBotMove();
@@ -3054,6 +3101,7 @@ function showGame() {
     const st = s.controller.getState();
     if (st.status==="finished"||s.botThinking||isBotTurn()||line.ownerId!==null) return;
     const scoreBefore = s.botPlayerId != null ? (st.players.find((p)=>p.id!==s.botPlayerId)?.score ?? 0) : 0;
+    guidedLine = null;
     s.controller.playLine(line); hoverLine=null; draw();
     const scoreAfterMove = s.botPlayerId != null ? (s.controller.getState().players.find((p)=>p.id!==s.botPlayerId)?.score ?? 0) : 0;
     if (scoreAfterMove > scoreBefore) {
@@ -3268,7 +3316,7 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
   flex-direction: column;
   gap: 14px;
 }
-.menu-logo { cursor: pointer; user-select: none; text-align: center; }
+.menu-logo { cursor: default; user-select: none; text-align: center; pointer-events: none; }
 .menu-logo h1,
 .theme-setup-brand h1 {
   font-size: 2.4rem; font-weight: 900; letter-spacing: -1px;
@@ -3426,6 +3474,14 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
 .energy-bolt { font-size: 1.1rem; color: var(--ui-accent); }
 .energy-count { font-weight: 800; color: var(--ui-accent); font-size: .9rem; min-width: 36px; }
 .energy-timer { font-size: .75rem; font-weight: 700; color: var(--text-2); white-space: nowrap; }
+.energy-row--minimal {
+  width: auto;
+  gap: 6px;
+  justify-content: center;
+}
+.energy-row--minimal .energy-count {
+  min-width: 0;
+}
 .e-dots-wrap { display: none; }
 .menu-screen .energy-row { flex-wrap: wrap; justify-content: center; row-gap: 6px; }
 .menu-screen .e-dots-wrap { display: flex; flex-basis: 100%; justify-content: center; gap: 3px; }
@@ -3451,6 +3507,19 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
 .menu-energy-chip .energy-timer { font-size: .64rem; }
 .menu-energy-chip .e-dots-wrap,
 .menu-energy-chip .e-bar-wrap { display: none; }
+.game-energy-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--ui-accent-soft);
+  border: 1px solid var(--ui-accent-border);
+  box-shadow: 0 0 0 1px var(--ui-accent-soft) inset;
+}
+.game-energy-chip .energy-bolt { font-size: .92rem; }
+.game-energy-chip .energy-count { font-size: .76rem; }
 .e-bar-wrap {
   display: flex; flex: 1; max-width: 200px; height: 13px;
   background: rgba(0,0,0,.35); border-radius: 6px; overflow: hidden;
@@ -3693,7 +3762,7 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
     justify-content: center;
     gap: 8px;
     padding-block: clamp(4px, 1.2vh, 10px);
-    transform: translateY(-25px);
+    transform: none;
   }
   .topbar {
     padding-top: 0;
@@ -3717,6 +3786,40 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
   .btn-profile-icon svg {
     width: 16px;
     height: 16px;
+  }
+  .game-screen {
+    padding: 10px 12px 24px;
+    gap: 12px;
+  }
+  .game-hud {
+    gap: 8px 6px;
+  }
+  .game-header-actions {
+    gap: 4px;
+  }
+  .game-energy-chip {
+    min-height: 30px;
+    padding: 0 8px;
+  }
+  .game-energy-chip .energy-count {
+    font-size: .68rem;
+  }
+  .section-title-main {
+    font-size: .86rem;
+  }
+  .section-title-sub {
+    font-size: .62rem;
+  }
+  .player-chip {
+    padding: 6px 10px;
+    font-size: .8rem;
+  }
+  #pwr-tip,
+  #pwr-radar {
+    min-width: 44px;
+  }
+  #pwr-freeze {
+    width: min(180px, 100%);
   }
   .menu-energy-chip .energy-row {
     padding: 5px 8px;
@@ -3847,7 +3950,7 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
   .menu-main {
     gap: 6px;
     padding-block: 0;
-    transform: translateY(-25px);
+    transform: none;
   }
   .bottom-bar {
     padding-top: 2px;
@@ -3866,6 +3969,7 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
   min-width: 0;
 }
 .section-title { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+.section-title--stacked { gap: 10px; }
 .section-title-icon {
   width: 28px; height: 28px; border-radius: 9px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -3875,10 +3979,28 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
 }
 .section-title-icon svg { width: 15px; height: 15px; flex-shrink: 0; }
 .section-title > span:last-child { min-width: 0; }
+.section-title-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.05;
+}
+.section-title-main {
+  font-size: .95rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.section-title-sub {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--text-2);
+  white-space: nowrap;
+}
 .header-end-spacer { flex: 0 0 72px; }
 .game-header-actions {
-  flex: 0 0 72px;
-  min-width: 72px;
+  flex: 0 0 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -3985,23 +4107,32 @@ html[data-theme="light"] .btn-diff--wild:hover {
 /* ── JOGO ────────────────────────────────────────────────────── */
 /* "mobile" e "responsivo" são equivalentes neste projeto: max-width: 767px */
 .game-screen {
-  position: relative; padding: 0; gap: 0;
-  display: flex; align-items: center; justify-content: center;
+  padding: 12px 16px 28px;
+  gap: 14px;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow-y: auto;
 }
 .game-hud {
-  position: absolute; top: 10px; left: 16px; right: 16px;
-  display: flex; flex-direction: column; gap: 10px; z-index: 2;
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px 8px;
   align-items: center;
-  pointer-events: none;
 }
-.game-hud > * { pointer-events: none; }
+.game-hud > * { pointer-events: auto; }
 .game-hud .screen-header,
-.game-hud .screen-header * { pointer-events: auto; }
-.game-screen .canvas-wrapper { display: flex; justify-content: center; }
-@media (max-width: 767px) {
-  .game-screen .canvas-wrapper { margin-bottom: 40px; }
+.game-hud .ta-hud,
+.game-hud .nerves-hud { grid-column: 1 / -1; }
+.scoreboard {
+  grid-column: 2;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  min-width: 0;
 }
-.scoreboard { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .player-chip { display: flex; align-items: center; gap: 7px; background: var(--bg-2); border: 2px solid var(--border); border-radius: 40px; padding: 7px 14px; font-size: .88rem; transition: border-color .15s; }
 .player-chip--active { border-color: var(--pc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc) 18%, transparent); }
 .player-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--pc); flex-shrink: 0; }
@@ -4009,6 +4140,7 @@ html[data-theme="light"] .btn-diff--wild:hover {
 .player-score { font-weight: 800; color: var(--pc); }
 .team-chip { background: var(--bg-2); border: 2px solid var(--pc); border-radius: 10px; padding: 8px 16px; font-weight: 700; }
 .status {
+  grid-column: 2;
   display: inline-flex; align-items: center; justify-content: center;
   padding: 6px 14px; border-radius: 999px;
   font-size: .82rem; font-weight: 800; letter-spacing: .2px;
@@ -4025,15 +4157,16 @@ html[data-theme="light"] .btn-diff--wild:hover {
   color: var(--text-2); box-shadow: var(--shadow);
 }
 .status[data-state="hidden"] { opacity: 0; transform: translateY(-4px); }
-.game-energy-display {
-  width: min(360px, 100%);
+.canvas-wrapper {
+  width: 100%;
   display: flex;
   justify-content: center;
+  overflow-x: auto;
+  padding-top: 4px;
 }
-.game-energy-display .energy-row { max-width: 360px; }
-.game-energy-display .e-bar-wrap { max-width: 220px; }
-.canvas-wrapper { width: 100%; display: flex; justify-content: center; }
-canvas { max-width: 100%; height: auto; border-radius: 14px; background: var(--bg-2); box-shadow: var(--shadow); touch-action: none; display: block; }
+.game-screen--powers .canvas-wrapper { padding-top: 10px; }
+.game-screen--large-board .canvas-wrapper { padding-top: 18px; }
+canvas { max-width: 100%; height: auto; border-radius: 14px; background: var(--bg-2); box-shadow: var(--shadow); touch-action: none; display: block; margin: 0 auto; }
 
 /* ── MODAL (Settings + God Mode) ────────────────────────────── */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 700; backdrop-filter: blur(6px); animation: fadeIn .2s; }
@@ -4301,12 +4434,47 @@ html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
 .vip-lock-msg { font-size: .82rem; color: var(--text-2); line-height: 1.5; }
 
 /* ── BARRA DE PODERES (C2-C6) ────────────────────────── */
-.power-bar { display: flex; gap: 8px; padding: 6px 12px 4px; }
-.power-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 6px 4px; cursor: pointer; font-size: .7rem; transition: all .15s; }
+.power-bar { display: contents; }
+.power-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: .74rem;
+  transition: all .15s;
+  min-height: 38px;
+  box-shadow: var(--shadow);
+}
 .power-btn:not(.power-btn--disabled):hover { border-color: var(--ui-accent-border); background: var(--ui-accent-soft); }
 .power-btn--disabled { opacity: .45; cursor: default; }
-.power-label { font-size: .65rem; font-weight: 700; color: var(--text-2); text-align: center; line-height: 1.2; }
-.power-count { font-size: .75rem; font-weight: 800; color: var(--text); }
+.power-icon { font-size: 1rem; line-height: 1; }
+.power-label { font-size: .7rem; font-weight: 700; color: var(--text-2); text-align: center; line-height: 1.2; }
+.power-count { font-size: .78rem; font-weight: 800; color: var(--text); }
+#pwr-tip,
+#pwr-radar {
+  align-self: center;
+  justify-self: center;
+  min-width: 52px;
+  padding-inline: 8px;
+  flex-direction: column;
+  gap: 2px;
+}
+#pwr-tip { grid-column: 1; }
+#pwr-radar { grid-column: 3; }
+#pwr-tip .power-label,
+#pwr-radar .power-label {
+  display: none;
+}
+#pwr-freeze {
+  grid-column: 2;
+  justify-self: center;
+  width: min(220px, 100%);
+}
 
 /* ── CONFIRM POWER (C2-C6) ───────────────────────────── */
 .power-confirm-card { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px 24px; min-width: 260px; text-align: center; }

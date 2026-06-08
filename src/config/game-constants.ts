@@ -34,7 +34,7 @@ export const SALESFORCE_PLAYER_SYNC_ENABLED = true;
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const GAME_CONSTANTS = {
-  version: "v0.01.70",
+  version: "v0.01.71",
   energy: {
     max: 10,
     regenMinutes: 2,
