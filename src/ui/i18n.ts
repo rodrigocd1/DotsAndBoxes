@@ -280,6 +280,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     ta_total_time_label: "Tempo total",
     ta_failed_title: "Tentativa encerrada",
     ta_failed_body: "Tentativa encerrada no desafio {current}/{total}. O ranking só registra percursos completos.",
+    timer_attack_empty_title: "Nenhum tempo registrado ainda.",
+    timer_attack_empty_body: "Complete um percurso no Timer Attack para aparecer no ranking semanal.",
+    timer_attack_play_cta: "Jogar Timer Attack",
     ta_time_label: "Tempo",
 
     // Nervos de Aço
@@ -301,6 +304,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Ranking compartilhado
     rank_weekly_title: "Ranking Semanal",
     rank_no_entries: "Nenhuma pontuação esta semana.",
+    rank_player_fallback: "Jogador",
 
     // X1
     x1_coming_soon_title: "X1 Online",
@@ -532,6 +536,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     ta_total_time_label: "Tempo total",
     ta_failed_title: "Tentativa encerrada",
     ta_failed_body: "Tentativa encerrada no desafio {current}/{total}. O ranking só regista percursos completos.",
+    timer_attack_empty_title: "Nenhum tempo registado ainda.",
+    timer_attack_empty_body: "Complete um percurso no Timer Attack para aparecer no ranking semanal.",
+    timer_attack_play_cta: "Jogar Timer Attack",
     ta_time_label: "Tempo",
 
     // Nervos de Aço
@@ -553,6 +560,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Ranking compartilhado
     rank_weekly_title: "Ranking Semanal",
     rank_no_entries: "Nenhuma pontuação esta semana.",
+    rank_player_fallback: "Jogador",
 
     // X1
     x1_coming_soon_title: "X1 Online",
@@ -784,6 +792,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     ta_total_time_label: "Tiempo total",
     ta_failed_title: "Intento terminado",
     ta_failed_body: "El intento terminó en el desafío {current}/{total}. El ranking solo registra recorridos completos.",
+    timer_attack_empty_title: "Aún no hay tiempos registrados.",
+    timer_attack_empty_body: "Completa un recorrido en Timer Attack para aparecer en el ranking semanal.",
+    timer_attack_play_cta: "Jugar Timer Attack",
     ta_time_label: "Tiempo",
 
     // Nervios de Acero
@@ -805,6 +816,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Ranking compartido
     rank_weekly_title: "Ranking Semanal",
     rank_no_entries: "Sin puntuaciones esta semana.",
+    rank_player_fallback: "Jugador",
 
     // X1
     x1_coming_soon_title: "X1 Online",
@@ -1036,6 +1048,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     ta_total_time_label: "Total time",
     ta_failed_title: "Attempt ended",
     ta_failed_body: "The attempt ended on board {current}/{total}. Only full runs enter the ranking.",
+    timer_attack_empty_title: "No times recorded yet.",
+    timer_attack_empty_body: "Complete a Timer Attack run to appear in the weekly ranking.",
+    timer_attack_play_cta: "Play Timer Attack",
     ta_time_label: "Time",
 
     // Nerves of Steel
@@ -1057,6 +1072,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Shared ranking
     rank_weekly_title: "Weekly Ranking",
     rank_no_entries: "No scores this week.",
+    rank_player_fallback: "Player",
 
     // X1
     x1_coming_soon_title: "X1 Online",

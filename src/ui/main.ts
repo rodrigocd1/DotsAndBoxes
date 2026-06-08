@@ -147,7 +147,7 @@ interface TimerAttackRankEntry {
   name: string;
   totalTimeMs: number;
   boardTimesMs: readonly number[];
-  difficulty: BotDifficulty;
+  difficulty?: BotDifficulty;
   date: number;
 }
 
@@ -174,8 +174,55 @@ function addScoreWeekRankEntry(key: string, entry: ScoreWeekRankEntry): ScoreWee
   saveWeekRanking(key, top);
   return top;
 }
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+function isValidTimerAttackDuration(value: unknown): value is number {
+  return isFiniteNumber(value) && value > 0;
+}
+function isTimerAttackDifficulty(value: unknown): value is BotDifficulty {
+  return typeof value === "string" && (BOT_DIFFICULTIES as readonly string[]).includes(value);
+}
+function sanitizeTimerAttackBoardTimes(boardTimesMs: unknown): readonly number[] {
+  return Array.isArray(boardTimesMs)
+    ? boardTimesMs.filter(isValidTimerAttackDuration)
+    : [];
+}
+function sanitizeTimerAttackRankEntry(entry: unknown): TimerAttackRankEntry | null {
+  if (!entry || typeof entry !== "object") return null;
+  const candidate = entry as Partial<TimerAttackRankEntry>;
+  if (!isValidTimerAttackDuration(candidate.totalTimeMs)) return null;
+  return {
+    name: typeof candidate.name === "string" && candidate.name.trim()
+      ? candidate.name.trim()
+      : t("rank_player_fallback"),
+    totalTimeMs: candidate.totalTimeMs,
+    boardTimesMs: sanitizeTimerAttackBoardTimes(candidate.boardTimesMs),
+    difficulty: isTimerAttackDifficulty(candidate.difficulty) ? candidate.difficulty : undefined,
+    date: isFiniteNumber(candidate.date) && candidate.date > 0 ? candidate.date : 0,
+  };
+}
+function sanitizeTimerAttackRankingEntries(entries: readonly unknown[]): TimerAttackRankEntry[] {
+  return entries
+    .map(sanitizeTimerAttackRankEntry)
+    .filter((entry): entry is TimerAttackRankEntry => entry !== null)
+    .sort((a, b) => a.totalTimeMs - b.totalTimeMs)
+    .slice(0, 10);
+}
+function loadTimerAttackRanking(): TimerAttackRankEntry[] {
+  const rawEntries = loadWeekRanking<unknown>(TA_RANKING_KEY);
+  const rawList = Array.isArray(rawEntries) ? rawEntries : [];
+  const sanitizedEntries = sanitizeTimerAttackRankingEntries(rawList);
+  if (sanitizedEntries.length !== rawList.length) saveWeekRanking(TA_RANKING_KEY, sanitizedEntries);
+  return sanitizedEntries;
+}
 function addTimerAttackRankEntry(key: string, entry: TimerAttackRankEntry): TimerAttackRankEntry[] {
-  const entries = loadWeekRanking<TimerAttackRankEntry>(key);
+  const rawEntries = key === TA_RANKING_KEY
+    ? loadTimerAttackRanking()
+    : loadWeekRanking<unknown>(key);
+  const entries = key === TA_RANKING_KEY
+    ? [...rawEntries]
+    : sanitizeTimerAttackRankingEntries(Array.isArray(rawEntries) ? rawEntries : []);
   entries.push(entry);
   entries.sort((a, b) => a.totalTimeMs - b.totalTimeMs);
   const top = entries.slice(0, 10);
@@ -194,17 +241,19 @@ function scoreWeekRankHTML(entries: ScoreWeekRankEntry[], myScore: number, score
     </div>`).join("")}</div>`;
 }
 function timerAttackRankHTML(entries: TimerAttackRankEntry[], myTotalTimeMs: number | null): string {
-  if (!entries.length) return `<p class="rank-empty">${t("rank_no_entries")}</p>`;
+  const validEntries = sanitizeTimerAttackRankingEntries(entries);
+  if (!validEntries.length) return `<p class="rank-empty">${t("rank_no_entries")}</p>`;
   const medals = ["🥇","🥈","🥉"];
-  const myIdx = myTotalTimeMs == null ? -1 : entries.findIndex((entry) => entry.totalTimeMs === myTotalTimeMs);
-  return `<div class="rank-table">${entries.map((entry, index) => `
+  const myIdx = myTotalTimeMs == null ? -1 : validEntries.findIndex((entry) => entry.totalTimeMs === myTotalTimeMs);
+  return `<div class="rank-table">${validEntries.map((entry, index) => `
     <div class="rank-row${index === myIdx ? " rank-row--me" : ""}">
       <span class="rank-pos">${index < 3 ? medals[index]! : `${index+1}.`}</span>
       <span class="rank-name">${entry.name}</span>
-      <span class="rank-score">${formatTimerAttackTime(entry.totalTimeMs)}<small class="rank-score-sub">${getDiffLabel(entry.difficulty)}</small></span>
+      <span class="rank-score">${formatTimerAttackTime(entry.totalTimeMs)}<small class="rank-score-sub">${isTimerAttackDifficulty(entry.difficulty) ? getDiffLabel(entry.difficulty) : "-"}</small></span>
     </div>`).join("")}</div>`;
 }
 function formatTimerAttackTime(totalMs: number): string {
+  if (!isFiniteNumber(totalMs) || totalMs < 0) return "--:--.--";
   const totalCentiseconds = Math.max(0, Math.floor(totalMs / 10));
   const minutes = Math.floor(totalCentiseconds / 6000);
   const seconds = Math.floor((totalCentiseconds % 6000) / 100);
@@ -223,7 +272,7 @@ function getTimerAttackTotalTimeMs(s: GameSession, nowMs = Date.now()): number {
   return getTimerAttackCompletedTimeMs(s) + getTimerAttackBoardElapsedMs(s, nowMs);
 }
 function getTimerAttackBestTotalMs(): number | null {
-  const bestEntry = loadWeekRanking<TimerAttackRankEntry>(TA_RANKING_KEY)[0];
+  const bestEntry = loadTimerAttackRanking()[0];
   return bestEntry?.totalTimeMs ?? null;
 }
 
@@ -1547,7 +1596,7 @@ function showRankedScreen(): void {
 }
 
 function showTimerAttackRanking(): void {
-  const entries = loadWeekRanking<TimerAttackRankEntry>(TA_RANKING_KEY);
+  const entries = loadTimerAttackRanking();
   const ov = document.createElement("div");
   ov.className = "result-overlay";
   ov.innerHTML = `
@@ -1556,10 +1605,19 @@ function showTimerAttackRanking(): void {
         <span>${ICO_STOPWATCH} ${t("rank_weekly_title")}</span>
         <button class="modal-close" id="ta-rank-close">✕</button>
       </div>
-      ${timerAttackRankHTML(entries, null)}
+      ${entries.length ? timerAttackRankHTML(entries, null) : `
+        <div class="rank-empty-state">
+          <div class="rank-empty-title">${t("timer_attack_empty_title")}</div>
+          <p class="rank-empty-copy">${t("timer_attack_empty_body")}</p>
+          <button class="btn-start" id="ta-empty-play">${t("timer_attack_play_cta")}</button>
+        </div>`}
     </div>`;
   document.body.appendChild(ov);
   ov.querySelector("#ta-rank-close")!.addEventListener("click", () => ov.remove());
+  ov.querySelector("#ta-empty-play")?.addEventListener("click", () => {
+    ov.remove();
+    showTimerAttackScreen();
+  });
   ov.addEventListener("click", e => { if (e.target === ov) ov.remove(); });
 }
 
@@ -3761,6 +3819,16 @@ html[data-theme="pink"] .btn-icon--lab { background: var(--ui-accent-soft); bord
 .result-rank-title { font-size: .75rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; }
 .result-actions { display: flex; flex-direction: column; gap: 8px; }
 .rank-empty { text-align: center; color: var(--text-2); font-size: .88rem; }
+.rank-empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; text-align: center; padding: 8px 0 4px;
+}
+.rank-empty-title {
+  font-size: 1rem; font-weight: 800; color: var(--text);
+}
+.rank-empty-copy {
+  font-size: .88rem; line-height: 1.5; color: var(--text-2);
+}
 .rank-table { display: flex; flex-direction: column; gap: 6px; }
 .rank-row {
   display: flex; align-items: center; gap: 8px;
