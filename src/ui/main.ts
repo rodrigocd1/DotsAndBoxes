@@ -138,6 +138,7 @@ const ICO_ANDROID    = tablerSvg(PLATFORM_ICON_SIZE, `<path d="M4 10l0 6"/><path
 const ICO_APPLE      = tablerSvg(PLATFORM_ICON_SIZE, `<path d="M8.286 7.008c-3.216 0-4.286 3.23-4.286 5.92c0 3.229 2.143 8.072 4.286 8.072c1.165-.05 1.799-.538 3.214-.538c1.406 0 1.607.538 3.214.538s4.286-3.229 4.286-5.381c-.03-.011-2.649-.434-2.679-3.23c-.02-2.335 2.589-3.179 2.679-3.228c-1.096-1.606-3.162-2.113-3.75-2.153c-1.535-.12-3.032 1.077-3.75 1.077c-.729 0-2.036-1.077-3.214-1.077"/><path d="M12 4a2 2 0 0 0 2-2a2 2 0 0 0-2 2"/>`);
 const ICO_DEVICES_PC = tablerSvg(PLATFORM_ICON_SIZE, `<path d="M3 5h6v14h-6l0-14"/><path d="M12 9h10v7h-10l0-7"/><path d="M14 19h6"/><path d="M17 16v3"/><path d="M6 13v.01"/><path d="M6 16v.01"/>`);
 const ICO_STAR       = tablerSvg(MENU_ICON_SIZE,     `<path d="M12 17.75l-6.172 3.245l1.179-6.873l-5-4.867l6.9-1l3.086-6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873l-6.158-3.245"/>`);
+const ICO_BOLT       = tablerSvgFilled(16, `<path d="M13 2L3 14h6l-1 8 10-12h-6l1-8z"/>`);
 // Ícones de tema — reutilizados no toggle do menu e nos botões de configurações
 const THEME_ICON_SIZE = 16;
 const ICO_MOON_STARS  = tablerSvg(THEME_ICON_SIZE,   `<path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1-8.313-12.454l0 .008"/><path d="M17 4a2 2 0 0 0 2 2a2 2 0 0 0-2 2a2 2 0 0 0-2-2a2 2 0 0 0 2-2"/><path d="M19 11h2m-1-1v2"/>`);
@@ -747,7 +748,7 @@ function energyHTML(variant: "default" | "game" = "default"): string {
   if (variant === "game") {
     return `
       <div class="energy-row energy-row--minimal">
-        <span class="energy-bolt">âš¡</span>
+        <span class="energy-bolt">${ICO_BOLT}</span>
         <span class="energy-count">${label}</span>
       </div>`;
   }
@@ -756,7 +757,7 @@ function energyHTML(variant: "default" | "game" = "default"): string {
   ).join("");
   return `
     <div class="energy-row">
-      <span class="energy-bolt">⚡</span>
+      <span class="energy-bolt">${ICO_BOLT}</span>
       <span class="energy-count">${label}</span>
       ${countdown}
       <div class="e-dots-wrap">${dots}</div>
@@ -1896,7 +1897,7 @@ function powerBarHTML(): string {
   return `
     <div class="power-bar" id="power-bar">
       <button class="power-btn ${tipDisabled ? "power-btn--disabled" : ""}" id="pwr-tip" title="${t("power_master_tip")}">
-        🧠<span class="power-label">${t("power_master_tip")}</span>
+        <span class="power-icon">${ICO_BOLT}</span><span class="power-label">${t("power_master_tip")}</span>
         <span class="power-count">${tipUnlocked ? tipCount : "🔒"}</span>
       </button>
       <button class="power-btn ${radarDisabled ? "power-btn--disabled" : ""}" id="pwr-radar" title="${t("power_radar")}">
@@ -2729,7 +2730,7 @@ function showGame() {
     : s.mode === "vs-bot"
     ? sectionTitle(ICO_BARBELL, `${t("menu_bot")} · ${getDiffLabel(s.botDifficulty!)}`)
     : s.mode === "lab"
-    ? sectionTitle(ICO_LAB, `${t("menu_lab")} · ${getDiffLabel(s.botDifficulty!)}`)
+    ? stackedSectionTitle(ICO_LAB, t("menu_lab"), getDiffLabel(s.botDifficulty!))
     : s.mode === "timer-attack"
     ? sectionTitle(ICO_STOPWATCH, t("menu_timer_attack"))
     : s.mode === "nerves"
@@ -3471,7 +3472,20 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
   display: flex; align-items: center; gap: 10px;
   width: 100%; justify-content: center;
 }
-.energy-bolt { font-size: 1.1rem; color: var(--ui-accent); }
+.energy-bolt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #facc15;
+  line-height: 0;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(250, 204, 21, .35));
+}
+.energy-bolt svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
 .energy-count { font-weight: 800; color: var(--ui-accent); font-size: .9rem; min-width: 36px; }
 .energy-timer { font-size: .75rem; font-weight: 700; color: var(--text-2); white-space: nowrap; }
 .energy-row--minimal {
@@ -3502,7 +3516,13 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
   border: 1px solid var(--ui-accent-border);
   box-shadow: 0 0 0 1px var(--ui-accent-soft) inset;
 }
-.menu-energy-chip .energy-bolt { font-size: .95rem; }
+.menu-energy-chip .energy-bolt {
+  color: #facc15;
+}
+.menu-energy-chip .energy-bolt svg {
+  width: .95rem;
+  height: .95rem;
+}
 .menu-energy-chip .energy-count { min-width: 0; font-size: .72rem; }
 .menu-energy-chip .energy-timer { font-size: .64rem; }
 .menu-energy-chip .e-dots-wrap,
@@ -3518,7 +3538,13 @@ html[data-theme="pink"]  body::before { background-image: url('./bg-pink-mobile.
   border: 1px solid var(--ui-accent-border);
   box-shadow: 0 0 0 1px var(--ui-accent-soft) inset;
 }
-.game-energy-chip .energy-bolt { font-size: .92rem; }
+.game-energy-chip .energy-bolt {
+  color: #facc15;
+}
+.game-energy-chip .energy-bolt svg {
+  width: .92rem;
+  height: .92rem;
+}
 .game-energy-chip .energy-count { font-size: .76rem; }
 .e-bar-wrap {
   display: flex; flex: 1; max-width: 200px; height: 13px;
@@ -4004,7 +4030,7 @@ html[data-theme="pink"] .btn-lang.active { border-color: var(--ui-accent-border)
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 4px;
 }
 .btn-back {
   background: var(--ui-accent-soft); border: 1px solid var(--ui-accent-border);
@@ -4141,6 +4167,7 @@ html[data-theme="light"] .btn-diff--wild:hover {
 .team-chip { background: var(--bg-2); border: 2px solid var(--pc); border-radius: 10px; padding: 8px 16px; font-weight: 700; }
 .status {
   grid-column: 2;
+  grid-row: 3;
   display: inline-flex; align-items: center; justify-content: center;
   padding: 6px 14px; border-radius: 999px;
   font-size: .82rem; font-weight: 800; letter-spacing: .2px;
@@ -4452,17 +4479,30 @@ html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
 }
 .power-btn:not(.power-btn--disabled):hover { border-color: var(--ui-accent-border); background: var(--ui-accent-soft); }
 .power-btn--disabled { opacity: .45; cursor: default; }
-.power-icon { font-size: 1rem; line-height: 1; }
+.power-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  flex-shrink: 0;
+  color: #facc15;
+}
+.power-icon svg {
+  width: 1rem;
+  height: 1rem;
+  display: block;
+}
 .power-label { font-size: .7rem; font-weight: 700; color: var(--text-2); text-align: center; line-height: 1.2; }
 .power-count { font-size: .78rem; font-weight: 800; color: var(--text); }
 #pwr-tip,
 #pwr-radar {
+  grid-row: 3;
   align-self: center;
   justify-self: center;
-  min-width: 52px;
-  padding-inline: 8px;
+  min-width: 44px;
+  padding: 4px 6px;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 #pwr-tip { grid-column: 1; }
 #pwr-radar { grid-column: 3; }
@@ -4471,6 +4511,7 @@ html[data-theme="pink"] .music-vol-slider { accent-color: #ec4899; }
   display: none;
 }
 #pwr-freeze {
+  grid-row: 4;
   grid-column: 2;
   justify-self: center;
   width: min(220px, 100%);
