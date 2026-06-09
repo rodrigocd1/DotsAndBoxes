@@ -3140,6 +3140,7 @@ function showGame() {
     const {x,y}=scaled(canvas,e.clientX,e.clientY);
     const f=findLineAtPoint(st,x,y,hitRadius);
     if(f) handleMove(f);
+    else vibrate(8);
   });
   draw();
   if (s.mode === "arcade") startEnergyTimer();
