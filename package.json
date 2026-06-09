@@ -6,6 +6,8 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
+    "prepreview": "npm run build",
+    "postpreview": "git restore -- dist",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
